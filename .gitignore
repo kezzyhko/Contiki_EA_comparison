@@ -1,9 +1,9 @@
-/obj_sky
-/contiki-sky.a
-/contiki-sky.map
+obj_sky
+contiki-sky.a
+contiki-sky.map
 
-/symbols.h
-/symbols.c
+symbols.h
+symbols.c
 
 *.sky
 *~
