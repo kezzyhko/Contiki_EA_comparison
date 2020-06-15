@@ -1,128 +1,166 @@
 /*
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * This is a small example of how to write a TCP server using
+ * Contiki's protosockets. It is a simple server that accepts one line
+ * of text from the TCP connection, and echoes back the first 10 bytes
+ * of the string, and then closes the connection.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * This file is part of the Contiki operating system.
+ * The server only handles one connection at a time.
  *
  */
- 
-#include "contiki.h"
-#include "contiki-lib.h"
-#include "contiki-net.h"
- 
+
 #include <string.h>
- 
-#define DEBUG 1
-#if DEBUG
-#include <stdio.h>
-#define PRINTF(...) printf(__VA_ARGS__)
-#define PRINT6ADDR(addr) PRINTF(" %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x ", ((u8_t *)addr)[0], ((u8_t *)addr)[1], ((u8_t *)addr)[2], ((u8_t *)addr)[3], ((u8_t *)addr)[4], ((u8_t *)addr)[5], ((u8_t *)addr)[6], ((u8_t *)addr)[7], ((u8_t *)addr)[8], ((u8_t *)addr)[9], ((u8_t *)addr)[10], ((u8_t *)addr)[11], ((u8_t *)addr)[12], ((u8_t *)addr)[13], ((u8_t *)addr)[14], ((u8_t *)addr)[15])
-#define PRINTLLADDR(lladdr) PRINTF(" %02x:%02x:%02x:%02x:%02x:%02x ",(lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3],(lladdr)->addr[4], (lladdr)->addr[5])
-#else
-#define PRINTF(...)
-#define PRINT6ADDR(addr)
-#define PRINTLLADDR(addr)
-#endif
- 
-#define UDP_IP_BUF   ((struct uip_udpip_hdr *)&uip_buf[UIP_LLH_LEN])
- 
-#define MAX_PAYLOAD_LEN 120
- 
-static struct uip_udp_conn *server_conn;
- 
-PROCESS(udp_server_process, "UDP server process");
-AUTOSTART_PROCESSES(&udp_server_process);
+
+/*
+ * We include "contiki-net.h" to get all network definitions and
+ * declarations.
+ */
+#include "contiki-net.h"
+
+/*
+ * We define one protosocket since we've decided to only handle one
+ * connection at a time. If we want to be able to handle more than one
+ * connection at a time, each parallell connection needs its own
+ * protosocket.
+ */
+static struct psock ps;
+
+/*
+ * We must have somewhere to put incoming data, and we use a 10 byte
+ * buffer for this purpose.
+ */
+static uint8_t buffer[10];
+
 /*---------------------------------------------------------------------------*/
-static void
-tcpip_handler(void)
+/*
+ * A protosocket always requires a protothread. The protothread
+ * contains the code that uses the protosocket. We define the
+ * protothread here.
+ */
+static
+PT_THREAD(handle_connection(struct psock *p))
 {
-  static int seq_id;
-  char buf[MAX_PAYLOAD_LEN];
- 
-  if(uip_newdata()) {
-    ((char *)uip_appdata)[uip_datalen()] = 0;
-    PRINTF("Server received: '%s' from ", (char *)uip_appdata);
-    PRINT6ADDR(&UDP_IP_BUF->srcipaddr);
-    PRINTF("\n");
- 
-    uip_ipaddr_copy(&server_conn->ripaddr, &UDP_IP_BUF->srcipaddr);
-    server_conn->rport = UDP_IP_BUF->srcport;
-    PRINTF("Responding with message: ");
-    sprintf(buf, "Hello from the server! (%d)", ++seq_id);
-    PRINTF("%s\n", buf);
- 
-    uip_udp_packet_send(server_conn, buf, strlen(buf));
-    /* Restore server connection to allow data from any node */
-    memset(&server_conn->ripaddr, 0, sizeof(server_conn->ripaddr));
-    server_conn->rport = 0;
-  }
+	/*
+	 * A protosocket's protothread must start with a PSOCK_BEGIN(), with
+	 * the protosocket as argument.
+	 *
+	 * Remember that the same rules as for protothreads apply: do NOT
+	 * use local variables unless you are very sure what you are doing!
+	 * Local (stack) variables are not preserved when the protothread
+	 * blocks.
+	 */
+	PSOCK_BEGIN(p);
+
+	/*
+	 * We start by sending out a welcoming message. The message is sent
+	 * using the PSOCK_SEND_STR() function that sends a null-terminated
+	 * string.
+	 */
+	PSOCK_SEND_STR(p, "Welcome, please type something and press return.\n");
+	
+	/*
+	 * Next, we use the PSOCK_READTO() function to read incoming data
+	 * from the TCP connection until we get a newline character. The
+	 * number of bytes that we actually keep is dependant of the length
+	 * of the input buffer that we use. Since we only have a 10 byte
+	 * buffer here (the buffer[] array), we can only remember the first
+	 * 10 bytes received. The rest of the line up to the newline simply
+	 * is discarded.
+	 */
+	PSOCK_READTO(p, '\n');
+	
+	/*
+	 * And we send back the contents of the buffer. The PSOCK_DATALEN()
+	 * function provides us with the length of the data that we've
+	 * received. Note that this length will not be longer than the input
+	 * buffer we're using.
+	 */
+	PSOCK_SEND_STR(p, "Got the following data: ");
+	PSOCK_SEND(p, buffer, PSOCK_DATALEN(p));
+	PSOCK_SEND_STR(p, "Good bye!\r\n");
+
+	/*
+	 * We close the protosocket.
+	 */
+	PSOCK_CLOSE(p);
+
+	/*
+	 * And end the protosocket's protothread.
+	 */
+	PSOCK_END(p);
 }
 /*---------------------------------------------------------------------------*/
-static void
-print_local_addresses(void)
-{
-  int i;
-  uint8_t state;
- 
-  PRINTF("Server IPv6 addresses: \n");
-  for(i = 0; i < UIP_CONF_NETIF_MAX_ADDRESSES; i++) {
-    state = uip_netif_physical_if.addresses[i].state;
-    if(state == TENTATIVE || state == PREFERRED) {
-      PRINT6ADDR(&uip_netif_physical_if.addresses[i].ipaddr);
-      PRINTF("\n");
-    }
-  }
-}
+/*
+ * We declare the process and specify that it should be automatically started.
+ */
+PROCESS(example_psock_server_process, "Example protosocket server");
+AUTOSTART_PROCESSES(&example_psock_server_process);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(udp_server_process, ev, data)
+/*
+ * The definition of the process.
+ */
+PROCESS_THREAD(example_psock_server_process, ev, data)
 {
-  static struct etimer timer;
- 
-  PROCESS_BEGIN();
-  PRINTF("UDP server started\n");
- 
-  // wait 3 second, in order to have the IP addresses well configured
-  etimer_set(&timer, CLOCK_CONF_SECOND*3);
- 
-  // wait until the timer has expired
-  PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_TIMER);
- 
-  print_local_addresses();
- 
-  // set NULL and 0 as IP address and port to accept packet from any node and any srcport.
-  server_conn = udp_new(NULL, UIP_HTONS(0), NULL);
-  udp_bind(server_conn, UIP_HTONS(3000));
- 
-  PRINTF("Server listening on UDP port %u\n", UIP_HTONS(server_conn->lport));
- 
-  while(1) {
-    PROCESS_YIELD();
-    if(ev == tcpip_event) {
-      tcpip_handler();
-    }
-  }
- 
-  PROCESS_END();
+	/*
+	 * The process begins here.
+	 */
+	PROCESS_BEGIN();
+
+	/*
+	 * We start with setting up a listening TCP port. Note how we're
+	 * using the UIP_HTONS() macro to convert the port number (1010) to
+	 * network byte order as required by the tcp_listen() function.
+	 */
+	tcp_listen(UIP_HTONS(1010));
+
+	/*
+	 * We loop for ever, accepting new connections.
+	 */
+	while(1) {
+
+		/*
+		 * We wait until we get the first TCP/IP event, which probably
+		 * comes because someone connected to us.
+		 */
+		PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+
+		/*
+		 * If a peer connected with us, we'll initialize the protosocket
+		 * with PSOCK_INIT().
+		 */
+		if(uip_connected()) {
+			
+			/*
+			 * The PSOCK_INIT() function initializes the protosocket and
+			 * binds the input buffer to the protosocket.
+			 */
+			PSOCK_INIT(&ps, buffer, sizeof(buffer));
+
+			/*
+			 * We loop until the connection is aborted, closed, or times out.
+			 */
+			while(!(uip_aborted() || uip_closed() || uip_timedout())) {
+
+	/*
+	 * We wait until we get a TCP/IP event. Remember that we
+	 * always need to wait for events inside a process, to let
+	 * other processes run while we are waiting.
+	 */
+	PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+
+	/*
+	 * Here is where the real work is taking place: we call the
+	 * handle_connection() protothread that we defined above. This
+	 * protothread uses the protosocket to receive the data that
+	 * we want it to.
+	 */
+	handle_connection(&ps);
+			}
+		}
+	}
+	
+	/*
+	 * We must always declare the end of a process.
+	 */
+	PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
