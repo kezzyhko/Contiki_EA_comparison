@@ -1,2 +1,9 @@
-CONTIKI = /home/user/contiki
+CONTIKI_PROJECT = reciever sender
+all: $(CONTIKI_PROJECT)
+CONTIKI = /home/user/contiki-ng
+CFLAGS += -DUIP_CONF_IPV6
+CFLAGS+= -DUIP_CONF_IPV6_RPL
+WITH_UIP6=1
+UIP_CONF_IPV6=1
+MODULES = MAKE_NET_IPV6
 include $(CONTIKI)/Makefile.include
