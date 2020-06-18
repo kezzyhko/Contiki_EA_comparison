@@ -99,10 +99,10 @@
   <plugin>
     org.contikios.cooja.plugins.SimControl
     <width>280</width>
-    <z>4</z>
+    <z>1</z>
     <height>160</height>
-    <location_x>400</location_x>
-    <location_y>0</location_y>
+    <location_x>531</location_x>
+    <location_y>108</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.Visualizer
@@ -116,10 +116,10 @@
       <skin>org.contikios.cooja.plugins.skins.AddressVisualizerSkin</skin>
       <viewport>4.435905190667984 0.0 0.0 4.435905190667984 9.377473448254566 46.974511475946976</viewport>
     </plugin_config>
-    <width>400</width>
+    <width>394</width>
     <z>0</z>
-    <height>400</height>
-    <location_x>1</location_x>
+    <height>398</height>
+    <location_x>0</location_x>
     <location_y>1</location_y>
   </plugin>
   <plugin>
@@ -129,11 +129,11 @@
       <formatted_time />
       <coloring />
     </plugin_config>
-    <width>1248</width>
+    <width>959</width>
     <z>3</z>
-    <height>240</height>
-    <location_x>400</location_x>
-    <location_y>160</location_y>
+    <height>306</height>
+    <location_x>0</location_x>
+    <location_y>398</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.TimeLine
@@ -146,21 +146,24 @@
       <zoomfactor>500.0</zoomfactor>
     </plugin_config>
     <width>1648</width>
-    <z>2</z>
+    <z>4</z>
     <height>166</height>
     <location_x>0</location_x>
     <location_y>704</location_y>
   </plugin>
   <plugin>
-    org.contikios.cooja.plugins.Notes
+    org.contikios.cooja.plugins.RadioLogger
     <plugin_config>
-      <notes>Enter notes here</notes>
-      <decorations>true</decorations>
+      <split>198</split>
+      <formatted_time />
+      <showdups>false</showdups>
+      <hidenodests>false</hidenodests>
+      <analyzers name="6lowpan" />
     </plugin_config>
-    <width>968</width>
-    <z>1</z>
-    <height>160</height>
-    <location_x>680</location_x>
+    <width>689</width>
+    <z>2</z>
+    <height>703</height>
+    <location_x>959</location_x>
     <location_y>0</location_y>
   </plugin>
 </simconf>
