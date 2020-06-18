@@ -3,6 +3,9 @@
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
 #include "sys/log.h"
+#include "../cryptolibs/aes.h"
+#include "../cryptolibs/aes.c"
+#include "../cryptolibs/aes/rijndael.c"
 
 
 
@@ -12,7 +15,9 @@
 #define CLIENT_PORT 1357
 #define SERVER_PORT 2468
 #define SEND_INTERVAL 10
-#define MESSAGE "Hello World"
+#define BLOCK_LENGTH 16
+#define MESSAGE "123456789ABCDEFGHIJKLMNOPQRST"
+#define KEY ((unsigned char*) "c0c0c0c0c0c0c0c0")
 
 
 
@@ -40,13 +45,31 @@ PROCESS_THREAD(udp_client_process, ev, data)
 	static struct simple_udp_connection conn;
 	simple_udp_register(&conn, CLIENT_PORT, &reciever_ip, SERVER_PORT, NULL);
 	
-	// sending message
-	LOG_INFO("Sending \"%s\" to ", MESSAGE);
-	LOG_INFO_6ADDR(&reciever_ip);
-	LOG_INFO_("\n");
-	static char str[1024]; //TODO: variable length
-	snprintf(str, sizeof(str), MESSAGE); //TODO: encrypt message
-	simple_udp_send(&conn, str, strlen(str));
+	// encrypt and send message
+	setKey(KEY, 128);
+	char message[] = MESSAGE;
+	int len = strlen(message);
+	int i;
+	for (i = 0; i < len; i += BLOCK_LENGTH) {
+		// encrypt
+		unsigned char block_plain[BLOCK_LENGTH+1], block_encrypted[BLOCK_LENGTH];
+		memcpy(block_plain, message + i, BLOCK_LENGTH);
+		block_plain[BLOCK_LENGTH] = 0;
+		encrypt(block_plain, block_encrypted);
+
+		// log
+		LOG_INFO("Sending \"");
+		int j = 0;
+		for (j = 0; j < BLOCK_LENGTH; j++) {
+			LOG_INFO_("%x", block_encrypted[j]);
+		}
+		LOG_INFO_("\" (\"%s\") to ", block_plain);
+		LOG_INFO_6ADDR(&reciever_ip);
+		LOG_INFO_("\n");
+
+		//send
+		simple_udp_send(&conn, block_encrypted, BLOCK_LENGTH);
+	}
 
 	PROCESS_END();
 }
