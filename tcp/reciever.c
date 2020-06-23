@@ -4,6 +4,9 @@
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
 #include "sys/log.h"
+#include "../cryptolibs/aes.h"
+#include "../cryptolibs/aes.c"
+#include "../cryptolibs/aes/rijndael.c"
 
 
 
@@ -22,9 +25,26 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
 	while (1) {
-		PSOCK_READTO(p, '\n');
-		printf("%s", buffer);
-		// TODO: add decryption
+		// read
+		PSOCK_READBUF_LEN(p, BLOCK_LENGTH);
+
+		if (PSOCK_DATALEN(p) == BLOCK_LENGTH) {
+			// decrypt
+			setKey(KEY, 128);
+			unsigned char block_decrypted[BLOCK_LENGTH+1];
+			decrypt(buffer, block_decrypted);
+			block_decrypted[BLOCK_LENGTH] = 0;
+
+			// log
+			LOG_INFO("Received \"");
+			int j = 0;
+			for (j = 0; j < PSOCK_DATALEN(p); j++) {
+				LOG_INFO_("%x", buffer[j]);
+			}
+			LOG_INFO_("\" (\"%s\")\n", block_decrypted);
+		} else {
+			LOG_INFO("Data has the wrong length (%d), can not decode it.\n", PSOCK_DATALEN(p));
+		}
 	}
 	
 	PSOCK_END(p);
@@ -45,7 +65,7 @@ PROCESS_THREAD(example_psock_server_process, ev, data) {
 	PROCESS_WAIT_EVENT_UNTIL(uip_connected());
 	LOG_INFO("Connected\n");
 
-	// accepting data
+	// protothread for recieving data
 	static struct psock ps;
 	PSOCK_INIT(&ps, buffer, sizeof(buffer));
 	do {
