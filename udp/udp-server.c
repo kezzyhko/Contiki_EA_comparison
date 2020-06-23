@@ -58,8 +58,7 @@ static void request_callback(struct simple_udp_connection *c,
 // Main process
 PROCESS(udp_server_process, "UDP server");
 AUTOSTART_PROCESSES(&udp_server_process);
-PROCESS_THREAD(udp_server_process, ev, data)
-{
+PROCESS_THREAD(udp_server_process, ev, data) {
 	PROCESS_BEGIN();
 	NETSTACK_ROUTING.root_start();
 	static struct simple_udp_connection conn;

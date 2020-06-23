@@ -21,17 +21,15 @@
 
 
 
-
 // Main process
 PROCESS(udp_client_process, "UDP client");
 AUTOSTART_PROCESSES(&udp_client_process);
-PROCESS_THREAD(udp_client_process, ev, data)
-{
+PROCESS_THREAD(udp_client_process, ev, data) {
 	PROCESS_BEGIN();
 
 	// get ip address of the reciever
-	static struct etimer periodic_timer;
 	uip_ipaddr_t reciever_ip;
+	static struct etimer periodic_timer;
 	while (!NETSTACK_ROUTING.node_is_reachable() || !NETSTACK_ROUTING.get_root_ipaddr(&reciever_ip)) {
 		LOG_INFO("Unable to find reciever, retry in %d seconds\n", SEND_INTERVAL);
 		etimer_set(&periodic_timer, SEND_INTERVAL * CLOCK_SECOND);

@@ -1,7 +1,5 @@
-#include <string.h>
-#include <stdio.h>
-#include "contiki-net.h"
 #include "contiki.h"
+#include "contiki-net.h"
 #include "net/routing/routing.h"
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
@@ -12,80 +10,49 @@
 // Constants
 #define LOG_MODULE "Reciever"
 #define LOG_LEVEL LOG_LEVEL_INFO
-#define SENDER_PORT 1357
-#define RECIEVER_PORT 2468
-#define BLOCK_LENGTH 16
+#define PORT 1357
 #define KEY ((unsigned char*) "c0c0c0c0c0c0c0c0")
+#define BLOCK_LENGTH 16
 
 
 
-static struct psock ps;
-
-
-static uint8_t buffer[10];
-
-
-static
-PT_THREAD(handle_connection(struct psock *p))
-{
-
+// Data will arrive here
+static uint8_t buffer[BLOCK_LENGTH];
+static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
-
-	PSOCK_SEND_STR(p, "Welcome, please type something and press return.\n");
+	while (1) {
+		PSOCK_READTO(p, '\n');
+		printf("%s", buffer);
+		// TODO: add decryption
+	}
 	
-
-	PSOCK_READTO(p, '\n');
-	
-
-	PSOCK_SEND_STR(p, "Got the following data: ");
-	PSOCK_SEND(p, buffer, PSOCK_DATALEN(p));
-	PSOCK_SEND_STR(p, "Good bye!\r\n");
-
-
-	PSOCK_CLOSE(p);
-
-
 	PSOCK_END(p);
 }
 
 
+
+// Main process
 PROCESS(example_psock_server_process, "Example protosocket server");
 AUTOSTART_PROCESSES(&example_psock_server_process);
-PROCESS_THREAD(example_psock_server_process, ev, data)
-{
-
+PROCESS_THREAD(example_psock_server_process, ev, data) {
 	PROCESS_BEGIN();
+
+	// wait for connection
 	NETSTACK_ROUTING.root_start();
+	tcp_listen(UIP_HTONS(PORT));
+    LOG_INFO("Listening...\n");
+	PROCESS_WAIT_EVENT_UNTIL(uip_connected());
+	LOG_INFO("Connected\n");
 
-	tcp_listen(UIP_HTONS(1010));
-    printf("Listening...\n");
-
-	while(1) {
-
-
+	// accepting data
+	static struct psock ps;
+	PSOCK_INIT(&ps, buffer, sizeof(buffer));
+	do {
+		handle_connection(&ps);
 		PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
+	} while (!uip_closed() && !uip_aborted() && !uip_timedout());
 
-
-		if(uip_connected()) {
-    		printf("Connected\n");
-			
-
-			PSOCK_INIT(&ps, buffer, sizeof(buffer));
-
-
-			while(!(uip_aborted() || uip_closed() || uip_timedout())) {
-
-
-	PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
-
-
-	handle_connection(&ps);
-			}
-		}
-	}
-	
-
+	LOG_INFO("Connection closed\n");
 	PROCESS_END();
 }
-/*---------------------------------------------------------------------------*/
