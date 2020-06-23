@@ -1,5 +1,5 @@
-#ifndef AES_H
-#define AES_H
+#ifndef CRYPTO_H
+#define CRYPTO_H
 
 void setKey(unsigned char* key, int keybits);
 void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16]);
