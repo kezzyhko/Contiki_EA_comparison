@@ -4,9 +4,7 @@
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
 #include "sys/log.h"
-#include "../cryptolibs/aes.h"
-#include "../cryptolibs/aes.c"
-#include "../cryptolibs/aes/rijndael.c"
+#include "../cryptolibs/crypto.h"
 
 
 
