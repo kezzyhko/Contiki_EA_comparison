@@ -18,7 +18,7 @@ void setKey(unsigned char* key, int keybits)
 	_nrounds = rijndaelSetupDecrypt(_rkd, key, keybits);
 }
 
-void xor(unsigned int* a, const unsigned int* b) {
+void xor(unsigned long* a, const unsigned long* b) {
 	int i = 5;
 	while (--i > 0) {
 		*a ^= *b;
@@ -29,7 +29,7 @@ void xor(unsigned int* a, const unsigned int* b) {
 
 void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16])
 {
-	xor( (unsigned int*) _ive, (unsigned int*) plaintext);
+	xor( (unsigned long*) _ive, (unsigned long*) plaintext);
 	rijndaelEncrypt(_rke, _nrounds, _ive, ciphertext);
 	memcpy(_ive, ciphertext, 16);
 }
@@ -37,6 +37,6 @@ void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16])
 void decrypt(const unsigned char ciphertext[16], unsigned char plaintext[16])
 {
 	rijndaelDecrypt(_rkd, _nrounds, ciphertext, plaintext);
-	xor( (unsigned int*) plaintext, (unsigned int*) _ivd);
+	xor( (unsigned long*) plaintext, (unsigned long*) _ivd);
 	memcpy(_ivd, ciphertext, 16);
 }
