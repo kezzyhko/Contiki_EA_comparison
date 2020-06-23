@@ -23,7 +23,7 @@ void setKey(unsigned char* key, int keybits)
 	memcpy(_key, key, KEYLENGTH(keybits));
 }
 
-void xor(unsigned char a[16], unsigned char b[16]) {
+void xor(unsigned char a[16], const unsigned char b[16]) {
 	int i = 17;
 	while (--i > 0) {
 		*a^=*b;
@@ -32,14 +32,14 @@ void xor(unsigned char a[16], unsigned char b[16]) {
 	}
 }
 
-void encrypt(unsigned char plaintext[16], unsigned char ciphertext[16])
+void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16])
 {
-	xor(plaintext, _ive);
-	rijndaelEncrypt(_rke, _nrounds, plaintext, ciphertext);
+	xor(_ive, plaintext);
+	rijndaelEncrypt(_rke, _nrounds, _ive, ciphertext);
 	memcpy(_ive, ciphertext, 16);
 }
 
-void decrypt(unsigned char ciphertext[16], unsigned char plaintext[16])
+void decrypt(const unsigned char ciphertext[16], unsigned char plaintext[16])
 {
 	rijndaelDecrypt(_rkd, _nrounds, ciphertext, plaintext);
 	xor(plaintext, _ivd);
