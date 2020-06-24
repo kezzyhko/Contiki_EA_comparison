@@ -1,6 +1,8 @@
 CONTIKI_PROJECT = reciever sender
 all: $(CONTIKI_PROJECT)
 
+PROJECT_SOURCEFILES += statistics.c
+
 SOURCEDIRS += /home/user/project/cryptolibs
 PROJECT_SOURCEFILES += aes.c
 SOURCEDIRS += /home/user/project/cryptolibs/AES

@@ -5,8 +5,7 @@
 #include "net/ipv6/simple-udp.h"
 #include "sys/log.h"
 #include "../cryptolibs/crypto.h"
-// This comment is needed to fix "overflowed by 2 bytes" error
-//
+#include "statistics.h"
 
 
 
@@ -52,10 +51,10 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 
 
-// Main process
-PROCESS(example_psock_server_process, "Example protosocket server");
-AUTOSTART_PROCESSES(&example_psock_server_process);
-PROCESS_THREAD(example_psock_server_process, ev, data) {
+// Reciever process
+PROCESS(reciever_process, "Reciever");
+AUTOSTART_PROCESSES(&reciever_process, &statistics_process);
+PROCESS_THREAD(reciever_process, ev, data) {
 	PROCESS_BEGIN();
 
 	// wait for connection

@@ -1,7 +1,7 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
-// Enable TCP
-#define UIP_CONF_TCP 1
+#define ENERGEST_CONF_ON 1 // enable energest
+#define UIP_CONF_TCP 1 // enable TCP
 
 #endif /* PROJECT_CONF_H_ */

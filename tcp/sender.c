@@ -5,6 +5,7 @@
 #include "net/ipv6/simple-udp.h"
 #include "sys/log.h"
 #include "../cryptolibs/crypto.h"
+#include "statistics.h"
 
 
 
@@ -28,7 +29,7 @@ int len = sizeof(MESSAGE)/sizeof(char);
 
 
 
-// Send will be sent here
+// Data will be sent here
 static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
@@ -51,7 +52,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 		LOG_INFO_6ADDR(&reciever_ip);
 		LOG_INFO_("\n");
 
-		//send
+		// send
 		PSOCK_SEND(p, block_encrypted, BLOCK_LENGTH);
 	}
 
@@ -61,10 +62,10 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 
 
-// Main process
-PROCESS(example_psock_client_process, "Example protosocket client");
-AUTOSTART_PROCESSES(&example_psock_client_process);
-PROCESS_THREAD(example_psock_client_process, ev, data) {
+// Sender process
+PROCESS(sender_process, "Sender");
+AUTOSTART_PROCESSES(&sender_process, &statistics_process);
+PROCESS_THREAD(sender_process, ev, data) {
 	PROCESS_BEGIN();
 	static struct etimer periodic_timer;
 
