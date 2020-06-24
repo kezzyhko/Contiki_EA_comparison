@@ -14,7 +14,8 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 #define PORT 1357
 #define KEY ((unsigned char*) "c0c0c0c0c0c0c0c0")
-#define BLOCK_LENGTH 16
+// #define BLOCK_LENGTH 16
+#define BLOCK_LENGTH 8
 
 
 

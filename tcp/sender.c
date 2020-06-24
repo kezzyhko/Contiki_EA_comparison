@@ -16,7 +16,8 @@
 #define SEND_INTERVAL 10
 #define MESSAGE "123456789ABCDEFGHIJKLMNOPQR"
 #define KEY ((unsigned char*) "c0c0c0c0c0c0c0c0")
-#define BLOCK_LENGTH 16
+// #define BLOCK_LENGTH 16
+#define BLOCK_LENGTH 8
 
 
 
