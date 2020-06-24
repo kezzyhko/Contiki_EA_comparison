@@ -12,6 +12,7 @@ char *fix = "12345";
 // Constants
 #define LOG_MODULE "Energest"
 #define LOG_LEVEL LOG_LEVEL_INFO
+#define TIMER_INTERVAL CLOCK_SECOND/100
 
 
 
@@ -20,7 +21,7 @@ PROCESS(statistics_process, "Statistics process");
 PROCESS_THREAD(statistics_process, ev, data) {
 	PROCESS_BEGIN();
 	static struct etimer periodic_timer;
-	etimer_set(&periodic_timer, CLOCK_SECOND/100);
+	etimer_set(&periodic_timer, TIMER_INTERVAL);
 
 	while (1) {
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
@@ -40,4 +41,3 @@ PROCESS_THREAD(statistics_process, ev, data) {
 
 	PROCESS_END();
 }
-/*---------------------------------------------------------------------------*/

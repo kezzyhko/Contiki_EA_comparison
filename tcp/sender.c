@@ -46,7 +46,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 		LOG_INFO("Sending \"");
 		int j = 0;
 		for (j = 0; j < BLOCK_LENGTH; j++) {
-			LOG_INFO_("%x", block_encrypted[j]);
+			LOG_INFO_("%02x", block_encrypted[j]);
 		}
 		LOG_INFO_("\" (\"%s\") to ", block_plain);
 		LOG_INFO_6ADDR(&reciever_ip);

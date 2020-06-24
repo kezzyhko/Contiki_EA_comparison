@@ -12,9 +12,9 @@ void encipher(const uint32_t *const v, uint32_t *const w,
 
    while(n-->0)
    {
-      y += (z << 4 ^ z >> 5) + z ^ sum + k[sum&3];
+      y += ((z << 4 ^ z >> 5) + z) ^ (sum + k[sum&3]);
       sum += delta;
-      z += (y << 4 ^ y >> 5) + y ^ sum + k[sum>>11 & 3];
+      z += ((y << 4 ^ y >> 5) + y) ^ (sum + k[sum>>11 & 3]);
    }
 
    w[0]=y; w[1]=z;
@@ -34,9 +34,9 @@ void decipher(const uint32_t *const v, uint32_t *const w,
 
    while(n-->0)
    {
-      z -= (y << 4 ^ y >> 5) + y ^ sum + k[sum>>11 & 3];
+      z -= ((y << 4 ^ y >> 5) + y) ^ (sum + k[sum>>11 & 3]);
       sum -= delta;
-      y -= (z << 4 ^ z >> 5) + z ^ sum + k[sum&3];
+      y -= ((z << 4 ^ z >> 5) + z) ^ (sum + k[sum&3]);
    }
    
    w[0]=y; w[1]=z;

@@ -38,7 +38,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 			LOG_INFO("Received \"");
 			int j = 0;
 			for (j = 0; j < PSOCK_DATALEN(p); j++) {
-				LOG_INFO_("%x", buffer[j]);
+				LOG_INFO_("%02x", buffer[j]);
 			}
 			LOG_INFO_("\" (\"%s\")\n", block_decrypted);
 		} else {
