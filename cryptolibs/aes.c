@@ -1,7 +1,7 @@
 #include "crypto.h"
 #include "string.h"
 #include "AES/rijndael.h"
-
+#include "stdint.h"
 
 #define MAX_KEYBITS 256
 
@@ -18,7 +18,7 @@ void setKey(unsigned char* key, int keybits)
 	_nrounds = rijndaelSetupDecrypt(_rkd, key, keybits);
 }
 
-void xor(unsigned long* a, const unsigned long* b) {
+void xor(uint32_t* a, const uint32_t* b) {
 	int i = 5;
 	while (--i > 0) {
 		*a ^= *b;
@@ -27,16 +27,16 @@ void xor(unsigned long* a, const unsigned long* b) {
 	}
 }
 
-void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16])
+void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
 {
-	xor( (unsigned long*) _ive, (unsigned long*) plaintext);
+	xor( (uint32_t*) _ive, (uint32_t*) plaintext);
 	rijndaelEncrypt(_rke, _nrounds, _ive, ciphertext);
 	memcpy(_ive, ciphertext, 16);
 }
 
-void decrypt(const unsigned char ciphertext[16], unsigned char plaintext[16])
+void decrypt(const unsigned char* ciphertext, unsigned char* plaintext)
 {
 	rijndaelDecrypt(_rkd, _nrounds, ciphertext, plaintext);
-	xor( (unsigned long*) plaintext, (unsigned long*) _ivd);
+	xor( (uint32_t*) plaintext, (uint32_t*) _ivd);
 	memcpy(_ivd, ciphertext, 16);
 }

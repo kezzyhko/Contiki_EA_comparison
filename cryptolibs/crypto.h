@@ -2,7 +2,7 @@
 #define CRYPTO_H
 
 void setKey(unsigned char* key, int keybits);
-void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16]);
-void decrypt(const unsigned char ciphertext[16], unsigned char plaintext[16]);
+void encrypt(const unsigned char* plaintext, unsigned char* ciphertext);
+void decrypt(const unsigned char* ciphertext, unsigned char* plaintext);
 
 #endif
