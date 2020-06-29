@@ -6,6 +6,7 @@
 #include "../cryptolibs/crypto.h"
 #include "statistics.h"
 #include "constants.h"
+#include <stdlib.h>
 
 #include "sys/log.h"
 #define LOG_MODULE "Sender"
@@ -17,8 +18,17 @@
 static uint8_t buffer[BLOCK_LENGTH];
 uip_ipaddr_t reciever_ip;
 int i;
-char message[] = MESSAGE;
-int len = sizeof(MESSAGE)/sizeof(char);
+
+
+
+// Generating random data
+void generate_random_block(unsigned char result[BLOCK_LENGTH]) {
+    int i;
+    for (i = 0; i < BLOCK_LENGTH; i++) {
+        int key = rand() % (sizeof MESSAGE_CHARSET - 1);
+        result[i] = MESSAGE_CHARSET[key];
+    }
+}
 
 
 
@@ -28,11 +38,11 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 	// TODO: add encryption
 	setKey(KEY, 128);
-	for (i = 0; i < len; i += BLOCK_LENGTH) {
+	for (i = 0; i < MESSAGE_SIZE; i += BLOCK_LENGTH) {
 		// encrypt
 		unsigned char block_plain[BLOCK_LENGTH+1], block_encrypted[BLOCK_LENGTH];
-		memcpy(block_plain, message + i, BLOCK_LENGTH);
-		block_plain[BLOCK_LENGTH] = 0;
+		generate_random_block(block_plain);
+		block_plain[BLOCK_LENGTH] = '\0';
 		encrypt(block_plain, block_encrypted);
 
 		// log
@@ -43,7 +53,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 		}
 		LOG_INFO_("\" (\"%s\") to ", block_plain);
 		LOG_INFO_6ADDR(&reciever_ip);
-		LOG_INFO_("\n");
+		LOG_INFO_(". Already sent %d bytes of data\n", i+BLOCK_LENGTH);
 
 		// send
 		PSOCK_SEND(p, block_encrypted, BLOCK_LENGTH);
