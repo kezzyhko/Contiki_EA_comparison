@@ -67,7 +67,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 // Sender process
 PROCESS(sender_process, "Sender");
-AUTOSTART_PROCESSES(&sender_process, &statistics_process);
+AUTOSTART_PROCESSES(&sender_process);
 PROCESS_THREAD(sender_process, ev, data) {
 	PROCESS_BEGIN();
 	static struct etimer periodic_timer;
@@ -95,6 +95,7 @@ PROCESS_THREAD(sender_process, ev, data) {
 		}
 	} while (!uip_connected());
 	LOG_INFO("Connected\n");
+	log_energest_statistics();
 
 	// protothread for sending data
 	static struct psock ps;
@@ -105,5 +106,6 @@ PROCESS_THREAD(sender_process, ev, data) {
 	} while (!uip_closed() && !uip_aborted() && !uip_timedout());
 
 	LOG_INFO("Connection closed\n");
+	log_energest_statistics();
 	PROCESS_END();
 }

@@ -48,7 +48,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 // Reciever process
 PROCESS(reciever_process, "Reciever");
-AUTOSTART_PROCESSES(&reciever_process, &statistics_process);
+AUTOSTART_PROCESSES(&reciever_process);
 PROCESS_THREAD(reciever_process, ev, data) {
 	PROCESS_BEGIN();
 
@@ -58,6 +58,7 @@ PROCESS_THREAD(reciever_process, ev, data) {
     LOG_INFO("Listening...\n");
 	PROCESS_WAIT_EVENT_UNTIL(uip_connected());
 	LOG_INFO("Connected\n");
+	log_energest_statistics();
 
 	// protothread for recieving data
 	static struct psock ps;
@@ -68,5 +69,6 @@ PROCESS_THREAD(reciever_process, ev, data) {
 	} while (!uip_closed() && !uip_aborted() && !uip_timedout());
 
 	LOG_INFO("Connection closed\n");
+	log_energest_statistics();
 	PROCESS_END();
 }

@@ -1,6 +1,6 @@
 #ifndef STATISTICS_H_
 #define STATISTICS_H_
 
-PROCESS_NAME(statistics_process);
+void log_energest_statistics();
 
 #endif /* STATISTICS_H_ */
