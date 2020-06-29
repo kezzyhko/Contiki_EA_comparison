@@ -1,20 +1,14 @@
 #include "contiki.h"
 #include "sys/energest.h"
+
 #include "sys/log.h"
-
-
-
-// Constants
 #define LOG_MODULE "Energest"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-
-
-// Statistics process
 void log_energest_statistics() {
 	energest_flush();
 	LOG_INFO("SECOND %lu \t TOTAL %lu \t LISTEN %lu \t TRANSMIT %lu \t CPU %lu \t LPM %lu \t DEEP_LPM %lu\n",
-		(unsigned long)CLOCK_SECOND,
+		(unsigned long)ENERGEST_SECOND,
 		(unsigned long)ENERGEST_GET_TOTAL_TIME(),
 		(unsigned long)energest_type_time(ENERGEST_TYPE_LISTEN),
 		(unsigned long)energest_type_time(ENERGEST_TYPE_TRANSMIT),

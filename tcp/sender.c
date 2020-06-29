@@ -23,10 +23,11 @@ int i;
 
 // Generating random data
 void generate_random_block(unsigned char result[BLOCK_LENGTH]) {
+	static const char charset[] = MESSAGE_CHARSET;
     int i;
     for (i = 0; i < BLOCK_LENGTH; i++) {
-        int key = rand() % (sizeof MESSAGE_CHARSET - 1);
-        result[i] = MESSAGE_CHARSET[key];
+        int key = rand() % (sizeof charset - 1);
+        result[i] = charset[key];
     }
 }
 
@@ -46,7 +47,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 		encrypt(block_plain, block_encrypted);
 
 		// log
-		LOG_INFO("Sending \"");
+		LOG_INFO("Sending  \"");
 		int j = 0;
 		for (j = 0; j < BLOCK_LENGTH; j++) {
 			LOG_INFO_("%02x", block_encrypted[j]);
