@@ -3,21 +3,13 @@
 #include "net/routing/routing.h"
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
-#include "sys/log.h"
 #include "../cryptolibs/crypto.h"
 #include "statistics.h"
+#include "constants.h"
 
-
-
-// Constants
+#include "sys/log.h"
 #define LOG_MODULE "Sender"
 #define LOG_LEVEL LOG_LEVEL_INFO
-#define PORT 1357
-#define SEND_INTERVAL 10
-#define MESSAGE "123456789ABCDEFGHIJKLMNOPQR"
-#define KEY ((unsigned char*) "c0c0c0c0c0c0c0c0")
-// #define BLOCK_LENGTH 16
-#define BLOCK_LENGTH 8
 
 
 
