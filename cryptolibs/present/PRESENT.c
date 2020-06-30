@@ -529,6 +529,7 @@ present_substitution (uint8_t * p_text, present_op_t op)
             /*
              * An undefined operation occurred. Use forced assertion.
              */
+            p_sbox = g_sbox;
             ASSERT(0);
         break;
     }
