@@ -38,7 +38,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
 	// TODO: add encryption
-	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * sizeof(char));
+	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
 	for (i = 0; i < MESSAGE_SIZE; i += BLOCK_LENGTH) {
 		// encrypt
 		unsigned char block_plain[BLOCK_LENGTH+1], block_encrypted[BLOCK_LENGTH];
