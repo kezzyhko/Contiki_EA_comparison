@@ -1,794 +1,894 @@
-/*------------------------ MIT License HEADER ------------------------------------
-    Copyright ANSSI and NTU (2015)
-    Contributors:
-    Ryad BENADJILA [ryadbenadjila@gmail.com] and
-    Jian GUO [ntu.guo@gmail.com] and
-    Victor LOMNE [victor.lomne@gmail.com] and
-    Thomas PEYRIN [thomas.peyrin@gmail.com]
+/**
+ * @file present.c
+ * @brief Source file of the PRESENT crypt module.
+ *
+ * The file is the C implementation of the PRESENT crypt algorithm. The file
+ * contains global and static function definitions, data structures, type
+ * definitions, etc, of the module.
+ *
+ * All functions, variables, algorithms, etc., that used in the module are
+ * designed with respect to the specifications of the article "PRESENT: An
+ * Ultra-Lightweight Block Cipher". For further information, see the article.
+ *
+ * All functions, type definitions, data structures, etc., that used in
+ * header or source files were documented in the file which it is declared.
+ * For further information, see its detailed documentation.
+ *
+ * @see <a href=
+ *      "https://link.springer.com/chapter/10.1007%2F978-3-540-74735-2_31">
+ *      PRESENT: An Ultra-Lightweight Block Cipher</a>
+ *
+ * @author Furkan Kurt - kurtfu[at]yahoo.com
+ * @date 2018-11-12
+ *
+ * @copyright Copyright (c) 2018 Furkan Kurt
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ */
+#include "present.h"
 
-    This software is a computer program whose purpose is to implement
-    lightweight block ciphers with different optimizations for the x86
-    platform. Three algorithms have been implemented: PRESENT, LED and 
-    Piccolo. Three techniques have been explored: table based 
-    implementations, vperm (for vector permutation) and bitslice 
-    implementations. For more details, please refer to the SAC 2013
-    paper:
-    http://eprint.iacr.org/2013/445
-    as well as the documentation of the project.
-    Here is a big picture of how the code is divided:
-      - src/common contains common headers, structures and functions.
-      - src/table contains table based implementations, with the code 
-        that generates the tables in src/table/gen_tables. The code here 
-        is written in pure C so it should compile on any platform (x86  
-        and other architectures), as well as any OS flavour (*nix, 
-        Windows ...).
-      - src/vperm contains vperm based implementations. They are written 
-        in inline assembly for x86_64 and will only compile and work on 
-        this platform. The code only compiles with gcc, but porting it to
-        other assembly flavours should not be too complicated.
-      - src/bitslice contains bitslice based implementations. They are 
-        written in asm intrinsics. It should compile and run on i386 as 
-        well as x86_64 platforms, and it should be portable to other OS 
-        flavours since intrinsics are standard among many compilers.
-    Note: vperm and bitslice implementations require a x86 CPU with at least 
-    SSSE3 extensions.
+/**
+ * ID number of the module.
+ */
+#define ID__ (FILE_ID_PRESENT)
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+/*****************************************************************************/
+/* STANDART C LIBRARIES                                                      */
+/*****************************************************************************/
 
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
+#include <string.h>
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
+/*****************************************************************************/
+/* PROJECT LIBRARIES                                                         */
+/*****************************************************************************/
 
-    Except as contained in this notice, the name(s) of the above copyright holders
-    shall not be used in advertising or otherwise to promote the sale, use or other
-    dealings in this Software without prior written authorization.
+#include "assert.h"
 
+/*****************************************************************************/
+/* STATIC SYMBOL DEFINITIONS                                                 */
+/*****************************************************************************/
 
--------------------------- MIT License HEADER ----------------------------------*/
-#ifdef TABLE
-#include <common/basic_helpers.h>
-#include "PRESENT_tables.h"
+/*
+ * Start point offset of the key part that used in the crypt process.
+ */
+#define PRESENT_KEY_OFFSET (PRESENT_KEY_SIZE - PRESENT_CRYPT_SIZE)
 
-#ifdef TABLE
-#ifdef PRESENT80
-void PRESENT80table_key_schedule(const u8* masterKey80, u8* roundKeys80);
-void PRESENT80table_core(const u8* plaintext, const u8* roundKeys80, u8* ciphertext);
-void PRESENT80table_cipher(const u64 plaintext_in[TABLE_P], const u16 keys_in[TABLE_P][KEY80], u64 ciphertext_out[TABLE_P]);
+/*
+ * Shift count for each side in bits.
+ */
+#define PRESENT_SHIFT_COUNT (61u)
+
+/*
+ * Key size in 16-bit blocks.
+ */
+#define PRESENT_KEY_BLOCK_SIZE (PRESENT_KEY_BIT_SIZE / 16u)
+
+/*
+ * Buffer size that holds the new values during the permutation stage.
+ */
+#define PRESENT_PERMUTATION_BUFF_SIZE (PRESENT_CRYPT_BIT_SIZE / 16u)
+
+/*
+ * Buffer size that holds the rotated blocks during left shift.
+ */
+#if PRESENT_USE_KEY80
+#   define PRESENT_ROTATE_BUFF_SIZE_LEFT (2u)
+#elif PRESENT_USE_KEY128
+#   define PRESENT_ROTATE_BUFF_SIZE_LEFT (5u)
+#endif  /* PRESENT_USE_KEY128 */
+
+/*
+ * Buffer size that holds the rotated blocks during right shift.
+ */
+#define PRESENT_ROTATE_BUFF_SIZE_RIGHT (4u)
+
+/*
+ * The point where LSB and MSB came side to side after rotation to left.
+ */
+#define PRESENT_ROTATION_POINT_LEFT (3u)
+
+/*
+ * The point where LSB and MSB came side to side after rotation to right.
+ */
+#if PRESENT_USE_KEY80
+#   define PRESENT_ROTATION_POINT_RIGHT (1u)
+#elif PRESENT_USE_KEY128
+#   define PRESENT_ROTATION_POINT_RIGHT (4u)
+#endif  /* PRESENT_USE_KEY128 */
+
+/*
+ * Block count to be shifted after the rotation point during left shift.
+ */
+#if PRESENT_USE_KEY80
+#   define PRESENT_UNROTATED_BLOCK_COUNT_LEFT (1u)
+#elif PRESENT_USE_KEY128
+#   define PRESENT_UNROTATED_BLOCK_COUNT_LEFT (4u)
+#endif  /* PRESENT_USE_KEY128 */
+
+/*
+ * Block count to be shifted after the rotation point during right shift.
+ */
+#define PRESENT_UNROTATED_BLOCK_COUNT_RIGHT (3u)
+
+/*
+ * Offset value of the LSB bits source block during left shift.
+ */
+#if PRESENT_USE_KEY80
+#   define PRESENT_ROTATION_LSB_OFFSET (2u)
+#elif PRESENT_USE_KEY128
+#   define PRESENT_ROTATION_LSB_OFFSET (5u)
+#endif  /* PRESENT_USE_KEY128 */
+
+/*
+ * Offset value of the MSB bits source block during left shift.
+ */
+#if PRESENT_USE_KEY80
+#   define PRESENT_ROTATION_MSB_OFFSET (1u)
+#elif PRESENT_USE_KEY128
+#   define PRESENT_ROTATION_MSB_OFFSET (4u)
+#endif  /* PRESENT_USE_KEY128 */
+
+/*****************************************************************************/
+/* COMPILE-TIME ERROR CHECKS                                                 */
+/*****************************************************************************/
+
+#if !CONF_PRESENT
+#   error "PRESENT must be configured!"
 #endif
-#ifdef PRESENT128
-void PRESENT128table_key_schedule(const u8* masterKey128, u8* roundKeys128);
-void PRESENT128table_core(const u8* plaintext, const u8* roundKeys128, u8* ciphertext);
-void PRESENT128table_cipher(const u64 plaintext_in[TABLE_P], const u16 keys_in[TABLE_P][KEY128], u64 ciphertext_out[TABLE_P]);
-#endif
+
+#if (!PRESENT_USE_KEY80 && !PRESENT_USE_KEY128)
+#   error "Key size must be configured!"
 #endif
 
-/****************************************************************************************************/
-/* some macros                                                                                      */
+#if (PRESENT_USE_KEY80 && PRESENT_USE_KEY128)
+#   error "Only one key size can be chosen!"
+#endif
 
-/* Should translate to a 'bswap' instruction in assembly */
-#define BSWAP64(in) (u64)((u64)(((u64)(in) & (u64)0x00000000000000ffULL) << 56) |\
-		(u64)(((u64)(in) & (u64)0x000000000000ff00ULL) << 40) |\
-		(u64)(((u64)(in) & (u64)0x0000000000ff0000ULL) << 24) |\
-		(u64)(((u64)(in) & (u64)0x00000000ff000000ULL) <<  8) |\
-	        (u64)(((u64)(in) & (u64)0x000000ff00000000ULL) >>  8) |\
-		(u64)(((u64)(in) & (u64)0x0000ff0000000000ULL) >> 24) |\
-		(u64)(((u64)(in) & (u64)0x00ff000000000000ULL) >> 40) |\
-		(u64)(((u64)(in) & (u64)0xff00000000000000ULL) >> 56) )
-/* Should translate to a 'rot' instruction in assembly */
-#define ROTL64(in, l) ((in) << l) ^ ((in) >> (64-l))
-#define ROTR64(in, l) ((in) >> l) ^ ((in) << (64-l))
+#if (PRESENT_ROUND_COUNT < PRESENT_ROUND_COUNT_MIN)
+#   errror "Round count must be greater!"
+#endif
 
-#define MASK4  0x0f
-#define MASK8  0xff
-#define MASK16 0xffff
+#if (PRESENT_ROUND_COUNT > PRESENT_ROUND_COUNT_MAX)
+#   errror "Round count must be fewer!"
+#endif
 
-#define PRESENTKS80(keyLow, keyHigh, round) do {\
-	u64 temp;\
-	keyHigh  ^= TroundCounters80[round];\
-	temp      = keyHigh;\
-	keyHigh <<= 61;\
-	keyHigh  |= (keyLow << 45);\
-	keyHigh  |= (temp >> 19);\
-	keyLow    = (temp >> 3) & 0xffff;\
-	temp      = keyHigh >> 60;\
-	keyHigh  &= 0x0fffffffffffffff;\
-	temp      = TsboxKS80[temp];\
-	keyHigh  |= temp;\
-} while(0);
+/*****************************************************************************/
+/* DATA TYPE DEFINITIONS                                                     */
+/*****************************************************************************/
 
-#define PRESENTKS128(keyLow, keyHigh, round) do {\
-	u64 temp;\
-	keyLow  ^= TroundCounters128[round];\
-	temp     = keyHigh;\
-	keyHigh  = (temp   & 0x0000000000000007) << 61;\
-	keyHigh |= (keyLow & 0xfffffffffffffff8) >> 3;\
-	keyLow   = (keyLow & 0x0000000000000007) << 61;\
-	keyLow  |= (temp   & 0xfffffffffffffff8) >> 3;\
-	temp      = keyHigh >> 56;\
-	keyHigh  &= 0x00ffffffffffffff;\
-	temp      = TsboxKS128[temp];\
-	keyHigh  |= temp;\
-} while(0);
+/**
+ * This type is used in functions @ref present_substitution and
+ * @ref present_update_key to describe which process is runnig.
+ */
+typedef enum {
+    /*! Specifies the encryption operation. */
+    PRESENT_OP_ENCRYPT,
+    /*! Specifies the decryption operation. */
+    PRESENT_OP_DECRYPT,
+} present_op_t;
 
-#define PRESENTROUND(state) do {\
-	u64 stateIn;\
-	stateIn = state;\
-	state  = T0_PRESENT[stateIn & MASK8];\
-	state ^= T1_PRESENT[(stateIn >> 8) & MASK8];\
-	state ^= T2_PRESENT[(stateIn >> 16) & MASK8];\
-	state ^= T3_PRESENT[(stateIn >> 24) & MASK8];\
-	state ^= T4_PRESENT[(stateIn >> 32) & MASK8];\
-	state ^= T5_PRESENT[(stateIn >> 40) & MASK8];\
-	state ^= T6_PRESENT[(stateIn >> 48) & MASK8];\
-	state ^= T7_PRESENT[(stateIn >> 56) & MASK8];\
-} while(0);
+/*****************************************************************************/
+/* GLOBAL VARIABLES                                                          */
+/*****************************************************************************/
 
+/**
+ * Lookup table for PRESENT substitution process.
+ */
+static uint8_t const g_sbox[] = {0x0Cu, 0x05u, 0x06u, 0x0Bu, \
+                                 0x09u, 0x00u, 0x0Au, 0x0Du, \
+                                 0x03u, 0x0Eu, 0x0Fu, 0x08u, \
+                                 0x04u, 0x07u, 0x01u, 0x02u};
 
+/**
+ * Lookup table for PRESENT inverse substitution process.
+ */
+static uint8_t const g_sbox_inv[] = {0x05u, 0x0Eu, 0x0Fu, 0x08u, \
+                                     0x0Cu, 0x01u, 0x02u, 0x0Du, \
+                                     0x0Bu, 0x04u, 0x06u, 0x03u, \
+                                     0x00u, 0x07u, 0x09u, 0x0Au};
 
-/****************************************************************************************************/
-/* PRESENT80 key schedule                                                                           */
-#ifdef PRESENT80
-void PRESENT80table_key_schedule(const u8* masterKey80, u8* roundKeys80)
+/*****************************************************************************/
+/* STATIC FUNCTION PROTOTYPES                                                */
+/*****************************************************************************/
+
+/**
+ * @brief Add key layer of the algorithm.
+ *
+ * The function adjust \p p_key and adds it to \p p_text. Add key operation
+ * is simply an XOR operation of \p p_text and \p p_key. For further
+ * information about the PRESENT add key layer, see article's section 3.
+ *
+ * @warning The function assumes parameter \a p_text points a memory block
+ *          with length of @ref PRESENT_CRYPT_SIZE and parameter \a p_key
+ *          points a memory block with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_text Pointer of the text block.
+ * @param[in] p_key  Pointer of the crypt key.
+ *
+ * @return None.
+ */
+static void
+present_add_key(uint8_t * p_text, uint8_t const * p_key);
+
+/**
+ * @brief Substitution layer of the algorithm.
+ *
+ * The function replaces all the bytes of \p p_text with values either from
+ * S-box or inverse S-box. Lookup table is chosen with respect to \p op. For
+ * further information about the PRESENT substitution layer, see article's
+ * section 3.
+ *
+ * @warning The function assumes parameter \a p_text points a memory block
+ *          with length of @ref PRESENT_CRYPT_SIZE.
+ *
+ * @param[in] p_text Pointer of the text block.
+ * @param[in] op     The operation type.
+ *
+ *  @return None.
+ */
+static void
+present_substitution(uint8_t * p_text, present_op_t op);
+
+/**
+ * @brief Permutation layer of the algorithm.
+ *
+ * The function decides the operation order of the permutation process.
+ * Operation oder is chosen with respect to \p op. For further information
+ * about the permutation layer, see article's section 3.
+ *
+ * @warning The function assumes parameter \a p_text points a memory block
+ *          with length of \ref PRESENT_CRYPT_SIZE.
+ *
+ * @param[in] p_text Pointer of the text block.
+ * @param[in] op     The operation type.
+ *
+ * @return None.
+ */
+static void
+present_permutation(uint8_t * p_text, present_op_t op);
+
+/**
+ * @brief Permutation step of the encryption process.
+ *
+ * The function moves all the bits of \p p_text to their new positions. Bit
+ * positioning is described in the article. For further information about
+ * the permutation layer, see article's section 3.
+ *
+ * @warning The function assumes parameter \a p_text points a memory block
+ *          with length of \ref PRESENT_CRYPT_SIZE.
+ *
+ * @param[in] p_text Pointer of the text block.
+ *
+ * @return None.
+ */
+static void
+present_encrypt_permutation(uint8_t * p_text);
+
+/**
+ * @brief Permutation step of the decryption process.
+ *
+ * The function moves all the bits of \p p_text to their new positions. Bit
+ * positioning is described in the article. For further information about
+ * the permutation layer, see article's section 3.
+ *
+ * @warning The function assumes parameter \a p_text points a memory block
+ *          with length of \ref PRESENT_CRYPT_SIZE.
+ *
+ * @param[in] p_text Pointer of the text block.
+ *
+ * @return None.
+ */
+static void
+present_decrypt_permutation(uint8_t * p_text);
+
+/**
+ * @brief Update key layer of the algorithm.
+ *
+ * The function decides the operation order of the update key process.
+ * Operation oder is chosen with respect to \p op. For further information
+ * about the update key layer, see article's section 3.
+ *
+ * @warning The function assumes parameter \a p_key points a memory block
+ *          with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_key         Pointer of the crypt key.
+ * @param[in] round_counter Index of the algorithm loop.
+ * @param[in] op            The operation type.
+ *
+ * @return None.
+ */
+static void
+present_update_key(uint8_t * p_key, uint8_t round_counter, present_op_t op);
+
+/**
+ * @brief Update key step of the encryption operation.
+ *
+ * The function rotates \p p_key to the left 61-bit, substitutes the MSB
+ * nibbles of the new value and XOR's related bits with \p round_counter.
+ * For further information about the update key layer, see article's
+ * section 3.
+ *
+ * @warning The function assumes parameter \a p_key points a memory block
+ *          with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_key         Pointer of the crypt key.
+ * @param[in] round_counter Index of the algorithm loop.
+ *
+ * @return None.
+ */
+static void
+present_update_encrypt_key(uint8_t * p_key, uint8_t round_counter);
+
+/**
+ * @brief Update key step of the decryption operation.
+ *
+ * The function XOR's related bits of \p p_key with \p round_counter,
+ * substitutes the MSB nibbles of the new value and rotates to the right
+ * 61-bit. For further information about the update key layer, see article's
+ * section 3.
+ *
+ * @warning The function assumes parameter \a p_key points a memory block
+ *          with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_key         Pointer of the crypt key.
+ * @param[in] round_counter Index of the algorithm loop.
+ *
+ * @return None.
+ */
+static void
+present_update_decrypt_key(uint8_t * p_key, uint8_t round_counter);
+
+/**
+ * @brief Generates the decryption key.
+ *
+ * The function generates the decryption key from the encryption key.
+ * The decryption key is the value of the encryption key at the last round.
+ *
+ * @warning The function assumes parameter \a p_key points a memory block
+ *          with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_key Pointer of the crypt key.
+ *
+ * @return None.
+ */
+static void
+present_generate_decrypt_key(uint8_t * p_key);
+
+/**
+ * @brief Rotates the key to the left 61-bit.
+ *
+ * The function rotates the \p p_key to the left 61-bit. The function is
+ * optimized for the PRESENT algorithm.
+ *
+ * @warning The function assumes the parameter \a p_key points a memory
+ *          block with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_key Pointer of the crypt key.
+ *
+ * @return None.
+ */
+static void
+present_rotate_key_left(uint8_t * p_key);
+
+/**
+ * @brief Rotates the key to the right 61-bit.
+ *
+ * The function rotates the \p p_key to the right 61-bit. The function is
+ * optimized for the PRESENT algorithm.
+ *
+ * @warning The function assumes parameter \a p_key points a memory block
+ *          with length of @ref PRESENT_KEY_SIZE.
+ *
+ * @param[in] p_key Pointer of the crypt key.
+ *
+ * @return None.
+ */
+static void
+present_rotate_key_right(uint8_t * p_key);
+
+/*****************************************************************************/
+/* GLOBAL FUNCTION DEFINITIONS                                               */
+/*****************************************************************************/
+
+void
+present_encrypt (uint8_t * p_text, uint8_t const * p_key)
 {
-	u64 currentKeyLow, currentKeyHigh;
+    uint8_t subkey[PRESENT_KEY_SIZE];
+    uint8_t round = 1u;
 
-	/* get low and high parts of master key */
-	currentKeyHigh = BSWAP64(((u64 *)masterKey80)[0]);
-	currentKeyLow  = (BSWAP64(((u16 *)(masterKey80+8))[0])) >> 48;
+    ASSERT(NULL != p_text);
+    ASSERT(NULL != p_key);
 
-	/* get round key 0 and compute round key 1 */
-	((u64 *)roundKeys80)[0] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 0);
+    /* 
+     * Copy the key into a buffer to keep original value unchanged during
+     * the encryption process.
+     */
+    memcpy(subkey, p_key, PRESENT_KEY_SIZE);
 
-	/* get round key 1 and compute round key 2 */
-	((u64 *)roundKeys80)[1] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 1);
+    /*
+     * Main loop of the PRESENT encryption algorithm.
+     */
+    while (round <= PRESENT_ROUND_COUNT)
+    {
+        present_add_key(p_text, subkey);
+        present_substitution(p_text, PRESENT_OP_ENCRYPT);
+        present_permutation(p_text, PRESENT_OP_ENCRYPT);
 
-	/* get round key 2 and compute round key 3 */
-	((u64 *)roundKeys80)[2] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 2);
+        present_update_key(subkey, round, PRESENT_OP_ENCRYPT);
 
-	/* get round key 3 and compute round key 4 */
-	((u64 *)roundKeys80)[3] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 3);
+        round++;
+    };
 
-	/* get round key 4 and compute round key 5 */
-	((u64 *)roundKeys80)[4] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 4);
+    /*
+     * Add the last subkey to finish the process.
+     */
+    present_add_key(p_text, subkey);
+}  /* present_encrypt() */
 
-	/* get round key 5 and compute round key 6 */
-	((u64 *)roundKeys80)[5] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 5);
-
-	/* get round key 6 and compute round key 7 */
-	((u64 *)roundKeys80)[6] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 6);
-
-	/* get round key 7 and compute round key 8 */
-	((u64 *)roundKeys80)[7] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 7);
-
-	/* get round key 8 and compute round key 9 */
-	((u64 *)roundKeys80)[8] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 8);
-
-	/* get round key 9 and compute round key 10 */
-	((u64 *)roundKeys80)[9] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 9);
-
-	/* get round key 10 and compute round key 11 */
-	((u64 *)roundKeys80)[10] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 10);
-
-	/* get round key 11 and compute round key 12 */
-	((u64 *)roundKeys80)[11] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 11);
-
-	/* get round key 12 and compute round key 13 */
-	((u64 *)roundKeys80)[12] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 12);
-
-	/* get round key 13 and compute round key 14 */
-	((u64 *)roundKeys80)[13] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 13);
-
-	/* get round key 14 and compute round key 15 */
-	((u64 *)roundKeys80)[14] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 14);
-
-	/* get round key 15 and compute round key 16 */
-	((u64 *)roundKeys80)[15] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 15);
-
-	/* get round key 16 and compute round key 17 */
-	((u64 *)roundKeys80)[16] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 16);
-
-	/* get round key 17 and compute round key 18 */
-	((u64 *)roundKeys80)[17] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 17);
-
-	/* get round key 18 and compute round key 19 */
-	((u64 *)roundKeys80)[18] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 18);
-
-	/* get round key 19 and compute round key 20 */
-	((u64 *)roundKeys80)[19] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 19);
-
-	/* get round key 20 and compute round key 21 */
-	((u64 *)roundKeys80)[20] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 20);
-
-	/* get round key 21 and compute round key 22 */
-	((u64 *)roundKeys80)[21] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 21);
-
-	/* get round key 22 and compute round key 23 */
-	((u64 *)roundKeys80)[22] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 22);
-
-	/* get round key 23 and compute round key 24 */
-	((u64 *)roundKeys80)[23] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 23);
-
-	/* get round key 24 and compute round key 25 */
-	((u64 *)roundKeys80)[24] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 24);
-
-	/* get round key 25 and compute round key 26 */
-	((u64 *)roundKeys80)[25] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 25);
-
-	/* get round key 26 and compute round key 27 */
-	((u64 *)roundKeys80)[26] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 26);
-
-	/* get round key 27 and compute round key 28 */
-	((u64 *)roundKeys80)[27] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 27);
-
-	/* get round key 28 and compute round key 29 */
-	((u64 *)roundKeys80)[28] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 28);
-
-	/* get round key 29 and compute round key 30 */
-	((u64 *)roundKeys80)[29] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 29);
-
-	/* get round key 30 and compute round key 31 */
-	((u64 *)roundKeys80)[30] = currentKeyHigh;
-	PRESENTKS80(currentKeyLow, currentKeyHigh, 30);
-
-	/* get round key 31 */
-	((u64 *)roundKeys80)[31] = currentKeyHigh;
-
-	return;
-}
-#endif
-
-
-
-/****************************************************************************************************/
-/* PRESENT128 key schedule                                                                          */
-#ifdef PRESENT128
-void PRESENT128table_key_schedule(const u8* masterKey128, u8* roundKeys128)
+void
+present_decrypt (uint8_t * p_text, uint8_t const * p_key)
 {
-	u64 currentKeyLow, currentKeyHigh;
+    uint8_t subkey[PRESENT_KEY_SIZE];
+    uint8_t round = PRESENT_ROUND_COUNT;
 
-	/* get low and high parts of master key */
-	currentKeyHigh = BSWAP64(((u64 *)masterKey128)[0]);
-	currentKeyLow = BSWAP64(((u64 *)masterKey128)[1]);
+    ASSERT(NULL != p_text);
+    ASSERT(NULL != p_key);
 
-	/* get round key 0 and compute round key 1 */
-	((u64 *)roundKeys128)[0] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 0);
+    /* 
+     * Copy the key into a buffer to keep original value unchanged during
+     * the decryption process.
+     */
+    memcpy(subkey, p_key, PRESENT_KEY_SIZE);
 
-	/* get round key 1 and compute round key 2 */
-	((u64 *)roundKeys128)[1] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 1);
+    /*
+     * Generate decryption key from the encryption key.
+     */
+    present_generate_decrypt_key(subkey);
 
-	/* get round key 2 and compute round key 3 */
-	((u64 *)roundKeys128)[2] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 2);
+    /*
+     * Last step of the encryption process is the first step of
+     * the decryption. Add generated decryption key first.
+     */
+    present_add_key(p_text, subkey);
 
-	/* get round key 3 and compute round key 4 */
-	((u64 *)roundKeys128)[3] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 3);
+    /*
+     * Main loop of the PRESENT decryption algorithm.
+     */
+    while (round > 0u)
+    {
+        present_permutation(p_text, PRESENT_OP_DECRYPT);
+        present_substitution(p_text, PRESENT_OP_DECRYPT);
 
-	/* get round key 4 and compute round key 5 */
-	((u64 *)roundKeys128)[4] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 4);
+        present_update_key(subkey, round, PRESENT_OP_DECRYPT);
+        present_add_key(p_text, subkey);
 
-	/* get round key 5 and compute round key 6 */
-	((u64 *)roundKeys128)[5] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 5);
+        round--;
+    }
+}  /* present_decrypt() */
 
-	/* get round key 6 and compute round key 7 */
-	((u64 *)roundKeys128)[6] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 6);
+/*****************************************************************************/
+/* STATIC FUNCTION DEFINITIONS                                               */
+/*****************************************************************************/
 
-	/* get round key 7 and compute round key 8 */
-	((u64 *)roundKeys128)[7] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 7);
-
-	/* get round key 8 and compute round key 9 */
-	((u64 *)roundKeys128)[8] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 8);
-
-	/* get round key 9 and compute round key 10 */
-	((u64 *)roundKeys128)[9] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 9);
-
-	/* get round key 10 and compute round key 11 */
-	((u64 *)roundKeys128)[10] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 10);
-
-	/* get round key 11 and compute round key 12 */
-	((u64 *)roundKeys128)[11] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 11);
-
-	/* get round key 12 and compute round key 13 */
-	((u64 *)roundKeys128)[12] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 12);
-
-	/* get round key 13 and compute round key 14 */
-	((u64 *)roundKeys128)[13] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 13);
-
-	/* get round key 14 and compute round key 15 */
-	((u64 *)roundKeys128)[14] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 14);
-
-	/* get round key 15 and compute round key 16 */
-	((u64 *)roundKeys128)[15] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 15);
-
-	/* get round key 16 and compute round key 17 */
-	((u64 *)roundKeys128)[16] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 16);
-
-	/* get round key 17 and compute round key 18 */
-	((u64 *)roundKeys128)[17] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 17);
-
-	/* get round key 18 and compute round key 19 */
-	((u64 *)roundKeys128)[18] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 18);
-
-	/* get round key 19 and compute round key 20 */
-	((u64 *)roundKeys128)[19] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 19);
-
-	/* get round key 20 and compute round key 21 */
-	((u64 *)roundKeys128)[20] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 20);
-
-	/* get round key 21 and compute round key 22 */
-	((u64 *)roundKeys128)[21] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 21);
-
-	/* get round key 22 and compute round key 23 */
-	((u64 *)roundKeys128)[22] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 22);
-
-	/* get round key 23 and compute round key 24 */
-	((u64 *)roundKeys128)[23] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 23);
-
-	/* get round key 24 and compute round key 25 */
-	((u64 *)roundKeys128)[24] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 24);
-
-	/* get round key 25 and compute round key 26 */
-	((u64 *)roundKeys128)[25] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 25);
-
-	/* get round key 26 and compute round key 27 */
-	((u64 *)roundKeys128)[26] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 26);
-
-	/* get round key 27 and compute round key 28 */
-	((u64 *)roundKeys128)[27] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 27);
-
-	/* get round key 28 and compute round key 29 */
-	((u64 *)roundKeys128)[28] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 28);
-
-	/* get round key 29 and compute round key 30 */
-	((u64 *)roundKeys128)[29] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 29);
-
-	/* get round key 30 and compute round key 31 */
-	((u64 *)roundKeys128)[30] = currentKeyHigh;
-	PRESENTKS128(currentKeyLow, currentKeyHigh, 30);
-
-	/* get round key 31 */
-	((u64 *)roundKeys128)[31] = currentKeyHigh;
-
-	return;
-}
-#endif
-
-
-
-/****************************************************************************************************/
-/* PRESENT80 encryption core                                                                        */
-#ifdef PRESENT80
-void PRESENT80table_core(const u8* plaintext, const u8* roundKeys80, u8* ciphertext)
+static void
+present_add_key (uint8_t * p_text, uint8_t const * p_key)
 {
-	u64 * state, * roundKeys;
+    uint8_t byte;
 
-	/* cast variables */
-	*((u64*)ciphertext) = BSWAP64(*((u64*)plaintext));
-	state     = (u64 *)ciphertext;
-	roundKeys = (u64 *)roundKeys80;
+    ASSERT(NULL != p_text);
+    ASSERT(NULL != p_key);
 
-	/* round 1 */
-	state[0] ^= roundKeys[0];
-	PRESENTROUND(state[0]);
+    /*
+     * Move key pointer to the start byte of the key part that specified in
+     * the article. For further information, see article's section 3.
+     */
+    p_key += PRESENT_KEY_OFFSET;
 
-	/* round 2 */
-	state[0] ^= roundKeys[1];
-	PRESENTROUND(state[0]);
+    /*
+     * Adding key is simply logic XOR operation.
+     */
+    for (byte = 0u; byte < PRESENT_CRYPT_SIZE; byte++)
+    {
+        p_text[byte] = p_text[byte] ^ p_key[byte];
+    }
+}  /* present_add_key() */
 
-	/* round 3 */
-	state[0] ^= roundKeys[2];
-	PRESENTROUND(state[0]);
-
-	/* round 4 */
-	state[0] ^= roundKeys[3];
-	PRESENTROUND(state[0]);
-
-	/* round 5 */
-	state[0] ^= roundKeys[4];
-	PRESENTROUND(state[0]);
-
-	/* round 6 */
-	state[0] ^= roundKeys[5];
-	PRESENTROUND(state[0]);
-
-	/* round 7 */
-	state[0] ^= roundKeys[6];
-	PRESENTROUND(state[0]);
-
-	/* round 8 */
-	state[0] ^= roundKeys[7];
-	PRESENTROUND(state[0]);
-
-	/* round 9 */
-	state[0] ^= roundKeys[8];
-	PRESENTROUND(state[0]);
-
-	/* round 10 */
-	state[0] ^= roundKeys[9];
-	PRESENTROUND(state[0]);
-
-	/* round 11 */
-	state[0] ^= roundKeys[10];
-	PRESENTROUND(state[0]);
-
-	/* round 12 */
-	state[0] ^= roundKeys[11];
-	PRESENTROUND(state[0]);
-
-	/* round 13 */
-	state[0] ^= roundKeys[12];
-	PRESENTROUND(state[0]);
-
-	/* round 14 */
-	state[0] ^= roundKeys[13];
-	PRESENTROUND(state[0]);
-
-	/* round 15 */
-	state[0] ^= roundKeys[14];
-	PRESENTROUND(state[0]);
-
-	/* round 16 */
-	state[0] ^= roundKeys[15];
-	PRESENTROUND(state[0]);
-
-	/* round 17 */
-	state[0] ^= roundKeys[16];
-	PRESENTROUND(state[0]);
-
-	/* round 18 */
-	state[0] ^= roundKeys[17];
-	PRESENTROUND(state[0]);
-
-	/* round 19 */
-	state[0] ^= roundKeys[18];
-	PRESENTROUND(state[0]);
-
-	/* round 20 */
-	state[0] ^= roundKeys[19];
-	PRESENTROUND(state[0]);
-
-	/* round 21 */
-	state[0] ^= roundKeys[20];
-	PRESENTROUND(state[0]);
-
-	/* round 22 */
-	state[0] ^= roundKeys[21];
-	PRESENTROUND(state[0]);
-
-	/* round 23 */
-	state[0] ^= roundKeys[22];
-	PRESENTROUND(state[0]);
-
-	/* round 24 */
-	state[0] ^= roundKeys[23];
-	PRESENTROUND(state[0]);
-
-	/* round 25 */
-	state[0] ^= roundKeys[24];
-	PRESENTROUND(state[0]);
-
-	/* round 26 */
-	state[0] ^= roundKeys[25];
-	PRESENTROUND(state[0]);
-
-	/* round 27 */
-	state[0] ^= roundKeys[26];
-	PRESENTROUND(state[0]);
-
-	/* round 28 */
-	state[0] ^= roundKeys[27];
-	PRESENTROUND(state[0]);
-
-	/* round 29 */
-	state[0] ^= roundKeys[28];
-	PRESENTROUND(state[0]);
-
-	/* round 30 */
-	state[0] ^= roundKeys[29];
-	PRESENTROUND(state[0]);
-
-	/* round 31 */
-	state[0] ^= roundKeys[30];
-	PRESENTROUND(state[0]);
-
-	/* last addRoundKey */
-	state[0] ^= roundKeys[31];
-
-	/* endianness handling */
-	state[0] = BSWAP64(state[0]);
-
-	return;
-}
-#endif
-
-
-
-/****************************************************************************************************/
-/* PRESENT128 encryption core                                                                       */
-#ifdef PRESENT128
-void PRESENT128table_core(const u8* plaintext, const u8* roundKeys128, u8* ciphertext)
+static void
+present_substitution (uint8_t * p_text, present_op_t op)
 {
-	u64 * state, * roundKeys;
+    uint8_t const * p_sbox;
+    uint8_t         high_nibble;
+    uint8_t         low_nibble;
+    uint8_t         byte;
 
-	/* cast variables */
-	*((u64*)ciphertext) = BSWAP64(*((u64*)plaintext));
-	state     = (u64 *)ciphertext;
-	roundKeys = (u64 *)roundKeys128;
+    ASSERT(NULL != p_text);
 
-	/* round 1 */
-	state[0] ^= roundKeys[0];
-	PRESENTROUND(state[0]);
+    /*
+     * If the operation is the encryption, use substitution box in further
+     * steps. Otherwise, use the inverse substitution box.
+     */
+    switch (op)
+    {
+        case PRESENT_OP_ENCRYPT:
+            p_sbox = g_sbox;
+        break;
 
-	/* round 2 */
-	state[0] ^= roundKeys[1];
-	PRESENTROUND(state[0]);
+        case PRESENT_OP_DECRYPT:
+            p_sbox = g_sbox_inv;
+        break;
 
-	/* round 3 */
-	state[0] ^= roundKeys[2];
-	PRESENTROUND(state[0]);
+        default:
+            /*
+             * An undefined operation occurred. Use forced assertion.
+             */
+            p_sbox = g_sbox;
+            ASSERT(0);
+        break;
+    }
 
-	/* round 4 */
-	state[0] ^= roundKeys[3];
-	PRESENTROUND(state[0]);
+    /*
+     * Replace all the bytes in the text block.
+     */
+    for (byte = 0u; byte < PRESENT_CRYPT_SIZE; byte++)
+    {
+        high_nibble = (p_text[byte] & 0xF0u) >> 4;
+        high_nibble = p_sbox[high_nibble];
 
-	/* round 5 */
-	state[0] ^= roundKeys[4];
-	PRESENTROUND(state[0]);
+        low_nibble = p_text[byte] & 0x0Fu;
+        low_nibble = p_sbox[low_nibble];
 
-	/* round 6 */
-	state[0] ^= roundKeys[5];
-	PRESENTROUND(state[0]);
+        p_text[byte] = (high_nibble << 4) | low_nibble;
+    }
+}  /* present_substitution() */
 
-	/* round 7 */
-	state[0] ^= roundKeys[6];
-	PRESENTROUND(state[0]);
-
-	/* round 8 */
-	state[0] ^= roundKeys[7];
-	PRESENTROUND(state[0]);
-
-	/* round 9 */
-	state[0] ^= roundKeys[8];
-	PRESENTROUND(state[0]);
-
-	/* round 10 */
-	state[0] ^= roundKeys[9];
-	PRESENTROUND(state[0]);
-
-	/* round 11 */
-	state[0] ^= roundKeys[10];
-	PRESENTROUND(state[0]);
-
-	/* round 12 */
-	state[0] ^= roundKeys[11];
-	PRESENTROUND(state[0]);
-
-	/* round 13 */
-	state[0] ^= roundKeys[12];
-	PRESENTROUND(state[0]);
-
-	/* round 14 */
-	state[0] ^= roundKeys[13];
-	PRESENTROUND(state[0]);
-
-	/* round 15 */
-	state[0] ^= roundKeys[14];
-	PRESENTROUND(state[0]);
-
-	/* round 16 */
-	state[0] ^= roundKeys[15];
-	PRESENTROUND(state[0]);
-
-	/* round 17 */
-	state[0] ^= roundKeys[16];
-	PRESENTROUND(state[0]);
-
-	/* round 18 */
-	state[0] ^= roundKeys[17];
-	PRESENTROUND(state[0]);
-
-	/* round 19 */
-	state[0] ^= roundKeys[18];
-	PRESENTROUND(state[0]);
-
-	/* round 20 */
-	state[0] ^= roundKeys[19];
-	PRESENTROUND(state[0]);
-
-	/* round 21 */
-	state[0] ^= roundKeys[20];
-	PRESENTROUND(state[0]);
-
-	/* round 22 */
-	state[0] ^= roundKeys[21];
-	PRESENTROUND(state[0]);
-
-	/* round 23 */
-	state[0] ^= roundKeys[22];
-	PRESENTROUND(state[0]);
-
-	/* round 24 */
-	state[0] ^= roundKeys[23];
-	PRESENTROUND(state[0]);
-
-	/* round 25 */
-	state[0] ^= roundKeys[24];
-	PRESENTROUND(state[0]);
-
-	/* round 26 */
-	state[0] ^= roundKeys[25];
-	PRESENTROUND(state[0]);
-
-	/* round 27 */
-	state[0] ^= roundKeys[26];
-	PRESENTROUND(state[0]);
-
-	/* round 28 */
-	state[0] ^= roundKeys[27];
-	PRESENTROUND(state[0]);
-
-	/* round 29 */
-	state[0] ^= roundKeys[28];
-	PRESENTROUND(state[0]);
-
-	/* round 30 */
-	state[0] ^= roundKeys[29];
-	PRESENTROUND(state[0]);
-
-	/* round 31 */
-	state[0] ^= roundKeys[30];
-	PRESENTROUND(state[0]);
-
-	/* last addRoundKey */
-	state[0] ^= roundKeys[31];
-
-	/* endianness handling */
-	state[0] = BSWAP64(state[0]);
-
-	return;
-}
-#endif
-
-
-
-/****************************************************************************************************/
-/* PRESENT80 key schedule + encryption                                                              */
-#ifdef PRESENT80
-void PRESENT80table_cipher(const u64 plaintext_in[TABLE_P], const u16 keys_in[TABLE_P][KEY80], u64 ciphertext_out[TABLE_P])
+static void
+present_permutation (uint8_t * p_text, present_op_t op)
 {
-	/* Key schedule: subkeys are of size 2*264 bytes */
-	u8 subkeys[TABLE_P * PRESENT80_SUBKEYS_SIZE];
+    ASSERT(NULL != p_text);
 
-#ifdef MEASURE_PERF
-	key_schedule_start = rdtsc();
-#endif
+    switch (op) {
+        case PRESENT_OP_ENCRYPT:
+            present_encrypt_permutation(p_text);
+        break;
 
-	/* Compute the subkeys */
-	PRESENT80table_key_schedule((const u8*)keys_in, subkeys);
+        case PRESENT_OP_DECRYPT:
+            present_decrypt_permutation(p_text);
+        break;
 
-#ifdef MEASURE_PERF
-	key_schedule_end = rdtsc();
-#endif
+        default:
+            /*
+             * An undefined operation occurred. Use forced assertion.
+             */
+            ASSERT(0);
+    }
+}  /* present_permutation() */
 
-#ifdef MEASURE_PERF
-	encrypt_start = rdtsc();
-#endif
-
-	/* Call the core encryption */
-	PRESENT80table_core((const u8*)plaintext_in, subkeys, (u8*)ciphertext_out);
-
-#ifdef MEASURE_PERF
-	encrypt_end = rdtsc();
-#endif
-
-	return;
-}
-#endif
-
-
-
-/****************************************************************************************************/
-/* PRESENT128 key schedule + encryption                                                             */
-#ifdef PRESENT128
-void PRESENT128table_cipher(const u64 plaintext_in[TABLE_P], const u16 keys_in[TABLE_P][KEY128], u64 ciphertext_out[TABLE_P])
+static void
+present_encrypt_permutation (uint8_t * p_text)
 {
-	/* Key schedule: subkeys are of size 2*264 bytes */
-	u8 subkeys[TABLE_P * PRESENT128_SUBKEYS_SIZE];
+    uint16_t buff[PRESENT_PERMUTATION_BUFF_SIZE] = {0u};
+    uint8_t  bit                                 = 0u;
+    uint8_t  byte                                = 0u;
 
-#ifdef MEASURE_PERF
-	key_schedule_start = rdtsc();
-#endif
+    ASSERT(NULL != p_text);
 
-	/* Compute the subkeys */
-	PRESENT128table_key_schedule((const u8*)keys_in, subkeys);
+    /*
+     * Every new 16-bit block has two bits from every bytes of the old text
+     * block. Even bits are from low and odd bits are from high nibbles.
+     * In every step of the loop, bit values are picked from related bytes.
+     * For detailed explanation of the bit positioning, see the article.
+     */
+    while (byte < PRESENT_CRYPT_SIZE)
+    {
+        buff[0] |= BITVAL(p_text[byte], 0u) << (2 * bit);
+        buff[0] |= BITVAL(p_text[byte], 4u) << (2 * bit + 1);
 
-#ifdef MEASURE_PERF
-	key_schedule_end = rdtsc();
-#endif
+        buff[1] |= BITVAL(p_text[byte], 1u) << (2 * bit);
+        buff[1] |= BITVAL(p_text[byte], 5u) << (2 * bit + 1);
 
-#ifdef MEASURE_PERF
-	encrypt_start = rdtsc();
-#endif
+        buff[2] |= BITVAL(p_text[byte], 2u) << (2 * bit);
+        buff[2] |= BITVAL(p_text[byte], 6u) << (2 * bit + 1);
 
-	/* Call the core encryption */
-	PRESENT128table_core((const u8*)plaintext_in, subkeys, (u8*)ciphertext_out);
+        buff[3] |= BITVAL(p_text[byte], 3u) << (2 * bit);
+        buff[3] |= BITVAL(p_text[byte], 7u) << (2 * bit + 1);
 
-#ifdef MEASURE_PERF
-	encrypt_end = rdtsc();
-#endif
+        bit++;
+        byte++;
+    }
 
-	return;
-}
-#endif
+    /*
+     * Copy the new value to the cipher block.
+     */
+    memcpy(p_text, buff, PRESENT_CRYPT_SIZE);
+}  /* present_encrypt_permutation() */
 
-#endif
+static void
+present_decrypt_permutation (uint8_t * p_text)
+{
+    uint8_t   buff[PRESENT_CRYPT_SIZE] = {0u};
+    uint16_t *p_block                  = (uint16_t *)p_text;
+    uint8_t   bit                      = 0u;
+    uint8_t   byte                     = 0u;
+
+    ASSERT(NULL != p_text);
+
+    /*
+     * Every new byte has two bits from every 16-bit blocks of the old
+     * permutated text. In every step of the loop, bit values are picked
+     * from related bytes. For detailed explanation of the bit positioning,
+     * see the article.
+     */
+    while (byte < PRESENT_CRYPT_SIZE)
+    {
+        buff[byte] |= BITVAL(p_block[0], (2 * bit))     << 0u;
+        buff[byte] |= BITVAL(p_block[0], (2 * bit) + 1) << 4u;
+
+        buff[byte] |= BITVAL(p_block[1], (2 * bit))     << 1u;
+        buff[byte] |= BITVAL(p_block[1], (2 * bit) + 1) << 5u;
+
+        buff[byte] |= BITVAL(p_block[2], (2 * bit))     << 2u;
+        buff[byte] |= BITVAL(p_block[2], (2 * bit) + 1) << 6u;
+
+        buff[byte] |= BITVAL(p_block[3], (2 * bit))     << 3u;
+        buff[byte] |= BITVAL(p_block[3], (2 * bit) + 1) << 7u;
+
+        bit++;
+        byte++;
+    }
+
+    /*
+     * Copy the new value to the decipher block.
+     */
+    memcpy(p_text, buff, PRESENT_CRYPT_SIZE);
+}  /* present_decrypt_permutation() */
+
+static void
+present_update_key (uint8_t * p_key, uint8_t round_counter, present_op_t op)
+{
+    ASSERT(NULL != p_key);
+    ASSERT(round_counter >= PRESENT_ROUND_COUNT_MIN);
+    ASSERT(round_counter <= PRESENT_ROUND_COUNT_MAX);
+
+    switch (op)
+    {
+        case PRESENT_OP_ENCRYPT:
+            present_update_encrypt_key(p_key, round_counter);
+        break;
+
+        case PRESENT_OP_DECRYPT:
+            present_update_decrypt_key(p_key, round_counter);
+        break;
+
+        default:
+            /*
+             * An undefined operation occurred. Use forced assertion.
+             */
+            ASSERT(0);
+        break;
+    }
+}  /* present_update_key() */
+
+static void
+present_update_encrypt_key (uint8_t * p_key, uint8_t round_counter)
+{
+    uint8_t high_nibble;
+    uint8_t low_nibble;
+
+    ASSERT(NULL != p_key);
+    ASSERT(round_counter >= PRESENT_ROUND_COUNT_MIN);
+    ASSERT(round_counter <= PRESENT_ROUND_COUNT_MAX);
+
+    /*
+     * Rotate the key to the left as first step of the key scheduling.
+     */
+    present_rotate_key_left(p_key);
+
+    /*
+     * Substitute the MSB high nibble of the key.
+     */
+    high_nibble = (p_key[PRESENT_KEY_SIZE - 1] & 0xF0u) >> 4;
+    high_nibble = g_sbox[high_nibble];
+
+    low_nibble = p_key[PRESENT_KEY_SIZE - 1] & 0x0Fu;
+
+#if PRESENT_USE_KEY128
+    /*
+     * Substitute the MSB low nibble if 128-bit key is used.
+     */
+    low_nibble = g_sbox[low_nibble];
+#endif  /* PRESENT_USE_KEY128 */
+
+    p_key[PRESENT_KEY_SIZE - 1] = (high_nibble << 4) | low_nibble;
+
+#if PRESENT_USE_KEY80
+    /*
+     * XOR the from 15th to 19th bits with the round counter.
+     */
+    p_key[2] ^= round_counter >> 1;
+    p_key[1] ^= round_counter << 7;
+#else  /* PRESENT_USE_KEY128 */
+    /*
+     * XOR the from 62th to 66th bits with the round counter.
+     */
+    p_key[8] ^= round_counter >> 2;
+    p_key[7] ^= round_counter << 6;
+#endif  /* PRESENT_USE_KEY128 */
+}  /* present_update_encrypt_key() */
+
+static void
+present_update_decrypt_key (uint8_t * p_key, uint8_t round_counter)
+{
+    uint8_t high_nibble;
+    uint8_t low_nibble;
+
+    ASSERT(NULL != p_key);
+    ASSERT(round_counter >= PRESENT_ROUND_COUNT_MIN);
+    ASSERT(round_counter <= PRESENT_ROUND_COUNT_MAX);
+
+#if PRESENT_USE_KEY80
+    /*
+     * XOR the from 15th to 19th bits with the round counter.
+     */
+    p_key[2] ^= round_counter >> 1;
+    p_key[1] ^= round_counter << 7;
+#else  /* PRESENT_USE_KEY128 */
+    /*
+     * XOR the from 62th to 66th bits with the round counter.
+     */
+    p_key[8] ^= round_counter >> 2;
+    p_key[7] ^= round_counter << 6;
+#endif  /* PRESENT_USE_KEY128 */
+
+    /*
+     * Substitute the MSB high nibble of the key.
+     */
+    high_nibble = (p_key[PRESENT_KEY_SIZE - 1] & 0xF0u) >> 4;
+    high_nibble = g_sbox_inv[high_nibble];
+
+    low_nibble = p_key[PRESENT_KEY_SIZE - 1] & 0x0Fu;
+
+#if PRESENT_USE_KEY128
+    /*
+     * Substitute the MSB low nibble if 128-bit key is used.
+     */
+    low_nibble = g_sbox_inv[low_nibble];
+#endif  /* PRESENT_USE_KEY128 */
+
+    p_key[PRESENT_KEY_SIZE - 1] = (high_nibble << 4) | low_nibble;
+
+    /*
+     * Rotate the key to the right to end the reverse scheduling.
+     */
+    present_rotate_key_right(p_key);
+}  /* present_update_decrypt_key() */
+
+static void
+present_generate_decrypt_key (uint8_t * p_key)
+{
+    uint8_t round;
+
+    ASSERT(NULL != p_key);
+
+    /*
+     * Start the loop from the first round.
+     */
+    round = 1u;
+
+    /*
+     * Update the key until the last round.
+     */
+    while (round <= PRESENT_ROUND_COUNT)
+    {
+        present_update_key(p_key, round, PRESENT_OP_ENCRYPT);
+        round++;
+    }
+}  /* present_generate_decrypt_key() */
+
+static void
+present_rotate_key_left (uint8_t * p_key)
+{
+    uint16_t   buff[PRESENT_ROTATE_BUFF_SIZE_LEFT];
+    uint16_t * p_block;
+    uint8_t    block;
+
+    uint8_t const rotation_point   = PRESENT_ROTATION_POINT_LEFT;
+    uint8_t const unrotated_blocks = PRESENT_UNROTATED_BLOCK_COUNT_LEFT;
+    uint8_t const lsb_offset       = PRESENT_ROTATION_LSB_OFFSET;
+    uint8_t const msb_offset       = PRESENT_ROTATION_MSB_OFFSET;
+
+    ASSERT(NULL != p_key);
+
+    p_block = (uint16_t *)p_key;
+
+    /*
+     * Fill the buffer with values that changes during the first loop.
+     */
+    for (block = 0u; block < PRESENT_ROTATE_BUFF_SIZE_LEFT; block++)
+    {
+        buff[block] = p_block[block];
+    }
+
+    /*
+     * Place the LSB 3-bit and the MSB 13-bit of the related blocks to the
+     * new place index until the rotation point.
+     */
+    for (block = 0u; block < rotation_point; block++)
+    {
+        p_block[block] = (p_block[block + lsb_offset] << 13) \
+                         | (p_block[block + msb_offset] >> 3);
+    }
+
+    /*
+     * Place the rotation point value by hand. Since the first block of the
+     * key has changed during the first loop, use the buffer value.
+     */
+    p_block[rotation_point] = (buff[0] << 13) \
+                              | (p_block[PRESENT_KEY_BLOCK_SIZE - 1] >> 3);
+
+    /*
+     * Fill the remain blocks with buffer values.
+     */
+    for (block = 0u; block < unrotated_blocks; block++)
+    {
+        p_block[block + 4] = (buff[block + 1] << 13) | (buff[block] >> 3);
+    }
+}  /* present_rotate_key_left() */
+
+static void
+present_rotate_key_right (uint8_t * p_key)
+{
+    uint16_t   buff[PRESENT_ROTATE_BUFF_SIZE_RIGHT];
+    uint16_t * p_block;
+    uint8_t    block;
+
+    uint8_t const rotation_point   = PRESENT_ROTATION_POINT_RIGHT;
+    uint8_t const unrotated_blocks = PRESENT_UNROTATED_BLOCK_COUNT_RIGHT;
+    uint8_t const place_offset     = PRESENT_ROTATION_POINT_RIGHT + 1u;
+
+    ASSERT(NULL != p_key);
+
+    p_block = (uint16_t *)p_key;
+
+    /*
+     * Fill the buffer with values that changes during the first loop.
+     */
+    for (block = 0u; block < PRESENT_ROTATE_BUFF_SIZE_RIGHT; block++)
+    {
+        buff[block] = p_block[block];
+    }
+
+    /*
+     * Place the LSB 13-bit and the MSB 3-bit of the related blocks to the
+     * new place index until the rotation point.
+     */
+    for (block = 0u; block < rotation_point; block++)
+    {
+        p_block[block] = (p_block[block + 4] << 3) | (p_block[block + 3] >> 13);
+    }
+
+    /*
+     * Place the rotation point value by hand. Since the first block of key
+     * has changed during the first loop, use the buffer value.
+     */
+    p_block[rotation_point] = (buff[0] << 3) \
+                              | (p_block[PRESENT_KEY_BLOCK_SIZE - 1] >> 13);
+
+    /*
+     * Fill the remain blocks with buffer values.
+     */
+    for (block = 0u; block < unrotated_blocks; block++)
+    {
+        p_block[block + place_offset] = (buff[block + 1] << 3) \
+                                        | (buff[block] >> 13);
+    }
+}  /* present_rotate_key_right() */
+
+/*** END OF FILE ***/

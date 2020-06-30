@@ -15,11 +15,15 @@ PROJECT_SOURCEFILES += statistics.c
 # SOURCEDIRS += ../cryptolibs/clefia
 # PROJECT_SOURCEFILES += clefia_ref.c
 
-# TEA
+# # TEA
+# SOURCEDIRS += ../cryptolibs
+# PROJECT_SOURCEFILES += tea.c
+# SOURCEDIRS += ../cryptolibs/tea
+# PROJECT_SOURCEFILES += tea.c
+
+# PRESENT
 SOURCEDIRS += ../cryptolibs
-PROJECT_SOURCEFILES += tea.c
-SOURCEDIRS += ../cryptolibs/tea
-PROJECT_SOURCEFILES += tea.c
+PROJECT_SOURCEFILES += present.c
 
 CONTIKI=/home/user/contiki-ng
 include $(CONTIKI)/Makefile.include
