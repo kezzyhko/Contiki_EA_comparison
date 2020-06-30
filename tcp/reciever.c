@@ -24,7 +24,6 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 		if (PSOCK_DATALEN(p) == BLOCK_LENGTH) {
 			// decrypt
-			setKey(KEY, 128);
 			unsigned char block_decrypted[BLOCK_LENGTH+1];
 			decrypt(buffer, block_decrypted);
 			block_decrypted[BLOCK_LENGTH] = 0;
@@ -61,6 +60,7 @@ PROCESS_THREAD(reciever_process, ev, data) {
 	log_energest_statistics();
 
 	// protothread for recieving data
+	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * sizeof(char));
 	static struct psock ps;
 	PSOCK_INIT(&ps, buffer, sizeof(buffer));
 	do {

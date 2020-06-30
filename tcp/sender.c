@@ -38,7 +38,6 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
 	// TODO: add encryption
-	setKey(KEY, 128);
 	for (i = 0; i < MESSAGE_SIZE; i += BLOCK_LENGTH) {
 		// encrypt
 		unsigned char block_plain[BLOCK_LENGTH+1], block_encrypted[BLOCK_LENGTH];
@@ -99,6 +98,7 @@ PROCESS_THREAD(sender_process, ev, data) {
 	log_energest_statistics();
 
 	// protothread for sending data
+	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * sizeof(char));
 	static struct psock ps;
 	PSOCK_INIT(&ps, buffer, sizeof(buffer));
 	do {
