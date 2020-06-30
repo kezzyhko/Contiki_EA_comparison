@@ -24,7 +24,7 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 		if (PSOCK_DATALEN(p) == BLOCK_LENGTH) {
 			// decrypt
-			setKey(KEY, 128);
+			setKey((unsigned char *)(KEY), (sizeof KEY - 1) * sizeof(char));
 			unsigned char block_decrypted[BLOCK_LENGTH+1];
 			decrypt(buffer, block_decrypted);
 			block_decrypted[BLOCK_LENGTH] = 0;
