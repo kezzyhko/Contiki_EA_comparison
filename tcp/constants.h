@@ -10,7 +10,7 @@
 
 #define KEY "c0c0c0c0c0c0c0c0" //128bit
 
-// #define BLOCK_LENGTH 16
-#define BLOCK_LENGTH 8
+// #define BLOCK_LENGTH 16 //128bit
+#define BLOCK_LENGTH 8 //64bit
 
 #endif /* CONSTANTS_H_ */
