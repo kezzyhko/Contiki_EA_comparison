@@ -35,5 +35,5 @@ void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
 
 void decrypt(const unsigned char* ciphertext, unsigned char* plaintext)
 {
-	speck_decryption((INT*)ciphertext, (INT*)plaintext, _rk, _ive);
+	speck_decryption((INT*)plaintext, (INT*)ciphertext, _rk, _ive);
 }
