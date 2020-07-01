@@ -26,12 +26,18 @@ PROJECT_SOURCEFILES += statistics.c
 # SOURCEDIRS += ../cryptolibs/tea
 # PROJECT_SOURCEFILES += tea.c
 
-# SPECK
-# do not forget to change configuration macros in ../cryptolibs/speck.c
+# # SPECK
+# # do not forget to change configuration macros in ../cryptolibs/speck.c
+# SOURCEDIRS += ../cryptolibs
+# PROJECT_SOURCEFILES += speck.c
+# SOURCEDIRS += ../cryptolibs/speck
+# PROJECT_SOURCEFILES += speck.c
+
+# TWOFISH
 SOURCEDIRS += ../cryptolibs
-PROJECT_SOURCEFILES += speck.c
-SOURCEDIRS += ../cryptolibs/speck
-PROJECT_SOURCEFILES += speck.c
+PROJECT_SOURCEFILES += twofish.c
+SOURCEDIRS += ../cryptolibs/twofish
+PROJECT_SOURCEFILES += opt2.c
 
 CONTIKI=/home/user/contiki-ng
 include $(CONTIKI)/Makefile.include

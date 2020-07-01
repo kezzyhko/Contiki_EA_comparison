@@ -10,7 +10,7 @@
 
 // For PRESENT and SPECK:
 // do not forget to check ../cryptolibs/present.c or ../cryptolibs/speck.c files
-// and change configuration macros there
+// and change configuration macros there as well
 
 // #define BLOCK_LENGTH 4 //32bit
 // #define BLOCK_LENGTH 8 //64bit
