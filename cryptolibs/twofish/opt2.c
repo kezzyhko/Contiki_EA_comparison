@@ -60,8 +60,8 @@
    nothing, but hey, what the hell, it doesn't hurt any */
 #define b3(x) (BYTE)((x) >> 24)  
 
-#define BYTEARRAY_TO_U32(r) ((r[0] << 24) ^ (r[1] << 16) ^ (r[2] << 8) ^ r[3])
-#define BYTES_TO_U32(r0, r1, r2, r3) ((r0 << 24) ^ (r1 << 16) ^ (r2 << 8) ^ r3)
+#define BYTEARRAY_TO_U32(r) (( (u32) r[0] << 24) ^ ( (u32) r[1] << 16) ^ ( (u32) r[2] << 8) ^ (u32) r[3])
+#define BYTES_TO_U32(r0, r1, r2, r3) (( (u32) r0 << 24) ^ ( (u32) r1 << 16) ^ ( (u32) r2 << 8) ^ (u32) r3)
 
 
 /* 
