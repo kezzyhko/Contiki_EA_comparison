@@ -193,22 +193,22 @@ void fullKey(u32 L[4], int k, u32 QF[4][256])
     	}
 	
 	/* now do the partial MDS matrix multiplies */
-	QF[0][i] = ((multEF[y0] << 24) 
-		    | (multEF[y0] << 16) 
-		    | (mult5B[y0] << 8)
-		    | y0);
-	QF[1][i] = ((y1 << 24) 
-		    | (mult5B[y1] << 16) 
-		    | (multEF[y1] << 8)
-		    | multEF[y1]);
-	QF[2][i] = ((multEF[y2] << 24) 
-		    | (y2 << 16) 
-		    | (multEF[y2] << 8)
-		    | mult5B[y2]);
-	QF[3][i] = ((mult5B[y3] << 24) 
-		    | (multEF[y3] << 16)
-		    | (y3 << 8) 
-		    | mult5B[y3]);
+	QF[0][i] = (((u32)multEF[y0] << 24) 
+		    | ((u32)multEF[y0] << 16) 
+		    | ((u32)mult5B[y0] << 8)
+		    | (u32)y0);
+	QF[1][i] = (((u32)y1 << 24) 
+		    | ((u32)mult5B[y1] << 16) 
+		    | ((u32)multEF[y1] << 8)
+		    | (u32)multEF[y1]);
+	QF[2][i] = (((u32)multEF[y2] << 24) 
+		    | ((u32)y2 << 16) 
+		    | ((u32)multEF[y2] << 8)
+		    | (u32)mult5B[y2]);
+	QF[3][i] = (((u32)mult5B[y3] << 24) 
+		    | ((u32)multEF[y3] << 16)
+		    | ((u32)y3 << 8) 
+		    | (u32)mult5B[y3]);
     }
 }
 
