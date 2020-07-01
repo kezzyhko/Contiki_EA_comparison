@@ -1,4 +1,6 @@
-#define u32 unsigned int
+#include <stdint.h>
+
+#define u32 uint32_t
 #define BYTE unsigned char
 
 void encrypt2fish(u32 K[40], u32 S[4][256], BYTE PT[16]);
