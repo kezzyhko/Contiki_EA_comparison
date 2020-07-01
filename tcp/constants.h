@@ -2,8 +2,8 @@
 #define CONSTANTS_H_
 
 #define PORT 1357
-
 #define SEND_INTERVAL 10
+#define PACKET_SIZE 64 //512bit
 
 #define MESSAGE_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define MESSAGE_SIZE (10 * 1024)
