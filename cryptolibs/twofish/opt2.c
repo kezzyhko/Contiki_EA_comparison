@@ -63,13 +63,6 @@
 #define BYTEARRAY_TO_U32(r) ((r[0] << 24) ^ (r[1] << 16) ^ (r[2] << 8) ^ r[3])
 #define BYTES_TO_U32(r0, r1, r2, r3) ((r0 << 24) ^ (r1 << 16) ^ (r2 << 8) ^ r3)
 
-void printSubkeys(u32 K[40])
-{
-    int i;
-    printf("round subkeys\n");
-    for (i=0;i<40;i+=2)
-	printf("%08X %08X\n", K[i], K[i+1]);
-}
 
 /* 
    multiply two polynomials represented as u32's, actually called with BYTES,
@@ -217,13 +210,6 @@ void fullKey(u32 L[4], int k, u32 QF[4][256])
 		    | (y3 << 8) 
 		    | mult5B[y3]);
     }
-}
-
-void printRound(int round, u32 R0, u32 R1, u32 R2, u32 R3, u32 K1, u32 K2)
-{
-    printf("round[%d] ['0x%08XL', '0x%08XL', '0x%08XL', '0x%08XL']\n", 
-	   round, R0, R1, R2, R3);
-
 }
 
 /* fully keyed h (aka g) function */
