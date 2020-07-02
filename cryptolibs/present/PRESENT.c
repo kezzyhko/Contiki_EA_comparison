@@ -433,7 +433,7 @@ void present_generate_keys(const uint8_t * p_key, uint8_t e_key[32][32], uint8_t
 }
 
 void
-present_encrypt (uint8_t * p_text, uint8_t const e_key[32][32])
+present_encrypt (uint8_t * p_text, uint8_t e_key[32][32])
 {
     uint8_t round = 0u;
 
@@ -460,7 +460,7 @@ present_encrypt (uint8_t * p_text, uint8_t const e_key[32][32])
 }  /* present_encrypt() */
 
 void
-present_decrypt (uint8_t * p_text, uint8_t const d_key[32][32])
+present_decrypt (uint8_t * p_text, uint8_t d_key[32][32])
 {
     uint8_t round = PRESENT_ROUND_COUNT;
 
