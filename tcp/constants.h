@@ -8,9 +8,9 @@
 #define MESSAGE_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define MESSAGE_SIZE (10 * 1024)
 
-// For PRESENT and SPECK:
-// do not forget to check ../cryptolibs/present.c or ../cryptolibs/speck.c files
-// and change configuration macros there as well
+// For PRESENT, SPECK and TWOFISH:
+// do not forget to check ../cryptolibs/present.c, ../cryptolibs/speck.c or ../cryptolibs/twofish.c
+// and change configuration macros and includes there as well
 
 // #define BLOCK_LENGTH 4 //32bit
 // #define BLOCK_LENGTH 8 //64bit
