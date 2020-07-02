@@ -34,6 +34,7 @@ PROJECT_SOURCEFILES += statistics.c
 # PROJECT_SOURCEFILES += speck.c
 
 # TWOFISH
+# # do not forget to change included key in ../cryptolibs/twofish.c
 SOURCEDIRS += ../cryptolibs
 PROJECT_SOURCEFILES += twofish.c
 SOURCEDIRS += ../cryptolibs/twofish
