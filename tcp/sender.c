@@ -38,17 +38,12 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
 	for (k = 0; k < MESSAGE_SIZE; k += PACKET_SIZE) {
-		// generate packet
+		// generate and encrypt packet
 		unsigned char packet_plain[PACKET_SIZE], packet_encrypted[PACKET_SIZE];
-		generate_random_data(packet_plain, PACKET_SIZE);
-
-		// encrypt packet
 		int i;
 		for (i = 0; i < PACKET_SIZE; i += BLOCK_LENGTH) {
-			unsigned char block_plain[BLOCK_LENGTH], block_encrypted[BLOCK_LENGTH];
-			memcpy(block_plain, packet_plain + i, BLOCK_LENGTH);
-			encrypt(block_plain, block_encrypted);
-			memcpy(packet_encrypted + i, block_encrypted, BLOCK_LENGTH);
+			generate_random_data(packet_plain + i, BLOCK_LENGTH);
+			encrypt(packet_plain + i, packet_encrypted + i);
 		}
 
 		// log
