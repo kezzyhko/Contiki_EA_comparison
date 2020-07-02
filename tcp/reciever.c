@@ -24,7 +24,6 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 		if (PSOCK_DATALEN(p) == BLOCK_LENGTH) {
 			// decrypt
-			setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
 			unsigned char block_decrypted[BLOCK_LENGTH+1];
 			decrypt(buffer, block_decrypted);
 			block_decrypted[BLOCK_LENGTH] = 0;
@@ -52,13 +51,17 @@ AUTOSTART_PROCESSES(&reciever_process);
 PROCESS_THREAD(reciever_process, ev, data) {
 	PROCESS_BEGIN();
 
+	// prepare the key
+	log_energest_statistics("Key generation started");
+	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
+	log_energest_statistics("Key generated");
+
 	// wait for connection
 	NETSTACK_ROUTING.root_start();
 	tcp_listen(UIP_HTONS(PORT));
     LOG_INFO("Listening...\n");
 	PROCESS_WAIT_EVENT_UNTIL(uip_connected());
-	LOG_INFO("Connected\n");
-	log_energest_statistics();
+	log_energest_statistics("Connected");
 
 	// protothread for recieving data
 	static struct psock ps;
@@ -68,7 +71,6 @@ PROCESS_THREAD(reciever_process, ev, data) {
 		PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
 	} while (!uip_closed() && !uip_aborted() && !uip_timedout());
 
-	LOG_INFO("Connection closed\n");
-	log_energest_statistics();
+	log_energest_statistics("Connection closed");
 	PROCESS_END();
 }
