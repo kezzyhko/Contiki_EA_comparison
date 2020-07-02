@@ -5,11 +5,11 @@
 int main()
 {
 	printf("%ld\n", sizeof(long));
-	unsigned char plaintext1[17] = "test1234test1234";
-	unsigned char ciphertext1[17];
+	unsigned char plaintext1[9] = "test1234";
+	unsigned char ciphertext1[9];
 
-	unsigned char plaintext2[17] = "lolkekchlolkekch";
-	unsigned char ciphertext2[171];
+	unsigned char plaintext2[9] = "lolkekch";
+	unsigned char ciphertext2[9];
 
 	printf("1\n");
 

@@ -9,15 +9,15 @@
 #include "stdint.h"
 #include "string.h"
 
-uint32_t* _key;
-int _keybits;
 uint32_t _ive[2] = {0xc0, 0xDE};
 uint32_t _ivd[2] = {0xc0, 0xDE};
 
+uint8_t e_key[32][32];
+uint8_t d_key[32][32];
+
 void setKey(unsigned char* key, int keybits)
 {
-	_key = (uint32_t*) key;
-	_keybits = keybits;
+	present_generate_keys(key, e_key, d_key);
 }
 
 void xor(uint32_t* a, const uint32_t* b) 
@@ -34,14 +34,14 @@ void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
 {
 	xor(_ive, (uint32_t*) plaintext);
 	memcpy(ciphertext, _ive, 8);
-	present_encrypt( (uint8_t*) ciphertext, (uint8_t*) _key);
+	present_encrypt( (uint8_t*) ciphertext, e_key);
 	memcpy(_ive, ciphertext, 8);
 }
 
 void decrypt(const unsigned char* ciphertext, unsigned char* plaintext)
 {
 	memcpy(plaintext, ciphertext, 8);
-	present_decrypt( (uint8_t*) plaintext, (uint8_t*) _key);
+	present_decrypt( (uint8_t*) plaintext, d_key);
 	xor( (uint32_t*) plaintext, (uint32_t*) _ivd);
 	memcpy(_ivd, (uint32_t*) ciphertext, 8);
 }
