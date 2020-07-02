@@ -15,17 +15,17 @@
 
 
 // Global variables
-static uint8_t buffer[BLOCK_LENGTH];
+static uint8_t buffer[PACKET_SIZE];
 uip_ipaddr_t reciever_ip;
-int i;
+int k;
 
 
 
 // Generating random data
-void generate_random_block(unsigned char result[BLOCK_LENGTH]) {
+void generate_random_data(unsigned char* result, int size) {
 	static const char charset[] = MESSAGE_CHARSET;
     int i;
-    for (i = 0; i < BLOCK_LENGTH; i++) {
+    for (i = 0; i < size; i++) {
         int key = rand() % (sizeof charset - 1);
         result[i] = charset[key];
     }
@@ -39,25 +39,36 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 
 	// TODO: add encryption
 	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
-	for (i = 0; i < MESSAGE_SIZE; i += BLOCK_LENGTH) {
-		// encrypt
-		unsigned char block_plain[BLOCK_LENGTH+1], block_encrypted[BLOCK_LENGTH];
-		generate_random_block(block_plain);
-		block_plain[BLOCK_LENGTH] = '\0';
-		encrypt(block_plain, block_encrypted);
+	for (k = 0; k < MESSAGE_SIZE; k += PACKET_SIZE) {
+		// generate packet
+		unsigned char packet_plain[PACKET_SIZE], packet_encrypted[PACKET_SIZE];
+		generate_random_data(packet_plain, PACKET_SIZE);
+
+		// encrypt packet
+		int i;
+		for (i = 0; i < PACKET_SIZE; i += BLOCK_LENGTH) {
+			unsigned char block_plain[BLOCK_LENGTH], block_encrypted[BLOCK_LENGTH];
+			memcpy(block_plain, packet_plain + i, BLOCK_LENGTH);
+			encrypt(block_plain, block_encrypted);
+			memcpy(packet_encrypted + i, block_encrypted, BLOCK_LENGTH);
+		}
 
 		// log
 		LOG_INFO("Sending  \"");
 		int j = 0;
-		for (j = 0; j < BLOCK_LENGTH; j++) {
-			LOG_INFO_("%02x", block_encrypted[j]);
+		for (j = 0; j < PACKET_SIZE; j++) {
+			LOG_INFO_("%02x", packet_encrypted[j]);
 		}
-		LOG_INFO_("\" (\"%s\") to ", block_plain);
+		LOG_INFO_("\" (\"");
+		for (j = 0; j < PACKET_SIZE; j++) {
+			LOG_INFO_("%c", packet_plain[j]);
+		}
+		LOG_INFO_("\") to ");
 		LOG_INFO_6ADDR(&reciever_ip);
-		LOG_INFO_(". Already sent %d bytes of data\n", i+BLOCK_LENGTH);
+		LOG_INFO_(". Already sent %d bytes of data\n", k + PACKET_SIZE);
 
 		// send
-		PSOCK_SEND(p, block_encrypted, BLOCK_LENGTH);
+		PSOCK_SEND(p, packet_encrypted, PACKET_SIZE);
 	}
 
 	PSOCK_CLOSE(p);
