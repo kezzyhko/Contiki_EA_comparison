@@ -110,7 +110,7 @@ extern "C" {
  *  @return None.
  */
 void
-present_encrypt(uint8_t * p_text, uint8_t e_key[32][32]);
+present_encrypt(uint8_t * p_text, uint8_t const * p_key);
 
 /**
  * @brief Decrypts the crypted text block.
@@ -131,9 +131,7 @@ present_encrypt(uint8_t * p_text, uint8_t e_key[32][32]);
  *  \return None.
  */
 void
-present_decrypt(uint8_t * p_text, uint8_t d_key[32][32]);
-
-void present_generate_keys(const uint8_t * p_key, uint8_t e_key[32][32], uint8_t d_key[32][32]);
+present_decrypt(uint8_t * p_text, uint8_t const * p_key);
 
 #ifdef __cplusplus
 }

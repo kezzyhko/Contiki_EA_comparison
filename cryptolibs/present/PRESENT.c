@@ -398,57 +398,31 @@ present_rotate_key_right(uint8_t * p_key);
 /* GLOBAL FUNCTION DEFINITIONS                                               */
 /*****************************************************************************/
 
-void present_generate_keys(const uint8_t * p_key, uint8_t e_key[32][32], uint8_t d_key[32][32]) 
+void
+present_encrypt (uint8_t * p_text, uint8_t const * p_key)
 {
     uint8_t subkey[PRESENT_KEY_SIZE];
     uint8_t round = 1u;
 
-    memcpy(subkey, p_key, PRESENT_KEY_SIZE);
-
-    while (round <= PRESENT_ROUND_COUNT)
-    {
-        memcpy(e_key[round - 1], subkey, PRESENT_KEY_SIZE);
-        present_update_encrypt_key(subkey, round);
-
-        round++;
-    }
-    memcpy(e_key[round - 1], subkey, PRESENT_KEY_SIZE);
-
-
-
-    round = PRESENT_ROUND_COUNT;
-
-    memcpy(subkey, p_key, PRESENT_KEY_SIZE);
-    present_generate_decrypt_key(subkey);
-
-    memcpy(d_key[round], subkey, PRESENT_KEY_SIZE);
-
-    while (round > 0u)
-    {
-        present_update_decrypt_key(subkey, round);
-        memcpy(d_key[round - 1], subkey, PRESENT_KEY_SIZE);
-
-        round--;
-    }
-}
-
-void
-present_encrypt (uint8_t * p_text, uint8_t e_key[32][32])
-{
-    uint8_t round = 0u;
-
     ASSERT(NULL != p_text);
-    ASSERT(NULL != e_key);
+    ASSERT(NULL != p_key);
 
+    /* 
+     * Copy the key into a buffer to keep original value unchanged during
+     * the encryption process.
+     */
+    memcpy(subkey, p_key, PRESENT_KEY_SIZE);
 
     /*
      * Main loop of the PRESENT encryption algorithm.
      */
-    while (round < PRESENT_ROUND_COUNT)
+    while (round <= PRESENT_ROUND_COUNT)
     {
-        present_add_key(p_text, e_key[round]);
+        present_add_key(p_text, subkey);
         present_substitution(p_text, PRESENT_OP_ENCRYPT);
         present_permutation(p_text, PRESENT_OP_ENCRYPT);
+
+        present_update_key(subkey, round, PRESENT_OP_ENCRYPT);
 
         round++;
     };
@@ -456,33 +430,47 @@ present_encrypt (uint8_t * p_text, uint8_t e_key[32][32])
     /*
      * Add the last subkey to finish the process.
      */
-    present_add_key(p_text, e_key[PRESENT_ROUND_COUNT]);
+    present_add_key(p_text, subkey);
 }  /* present_encrypt() */
 
 void
-present_decrypt (uint8_t * p_text, uint8_t d_key[32][32])
+present_decrypt (uint8_t * p_text, uint8_t const * p_key)
 {
+    uint8_t subkey[PRESENT_KEY_SIZE];
     uint8_t round = PRESENT_ROUND_COUNT;
 
     ASSERT(NULL != p_text);
-    ASSERT(NULL != d_key);
+    ASSERT(NULL != p_key);
+
+    /* 
+     * Copy the key into a buffer to keep original value unchanged during
+     * the decryption process.
+     */
+    memcpy(subkey, p_key, PRESENT_KEY_SIZE);
+
+    /*
+     * Generate decryption key from the encryption key.
+     */
+    present_generate_decrypt_key(subkey);
 
     /*
      * Last step of the encryption process is the first step of
      * the decryption. Add generated decryption key first.
      */
-    present_add_key(p_text, d_key[PRESENT_ROUND_COUNT]);
+    present_add_key(p_text, subkey);
 
     /*
      * Main loop of the PRESENT decryption algorithm.
      */
-    while (round > 0)
+    while (round > 0u)
     {
         present_permutation(p_text, PRESENT_OP_DECRYPT);
         present_substitution(p_text, PRESENT_OP_DECRYPT);
 
+        present_update_key(subkey, round, PRESENT_OP_DECRYPT);
+        present_add_key(p_text, subkey);
+
         round--;
-        present_add_key(p_text, d_key[round]);
     }
 }  /* present_decrypt() */
 
