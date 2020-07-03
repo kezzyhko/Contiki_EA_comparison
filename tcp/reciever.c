@@ -14,19 +14,19 @@
 
 
 // Data will arrive here
-static uint8_t buffer[BLOCK_LENGTH];
+static uint8_t buffer[BLOCK_LENGTH/8];
 static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
 	while (1) {
 		// read
-		PSOCK_READBUF_LEN(p, BLOCK_LENGTH);
+		PSOCK_READBUF_LEN(p, BLOCK_LENGTH/8);
 
-		if (PSOCK_DATALEN(p) == BLOCK_LENGTH) {
+		if (PSOCK_DATALEN(p) == BLOCK_LENGTH/8) {
 			// decrypt
-			unsigned char block_decrypted[BLOCK_LENGTH+1];
+			unsigned char block_decrypted[BLOCK_LENGTH/8+1];
 			decrypt(buffer, block_decrypted);
-			block_decrypted[BLOCK_LENGTH] = 0;
+			block_decrypted[BLOCK_LENGTH/8] = 0;
 
 			// log
 			LOG_INFO("Received \"");
@@ -53,7 +53,7 @@ PROCESS_THREAD(reciever_process, ev, data) {
 
 	// prepare the key
 	log_energest_statistics("Key generation started");
-	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
+	setKey((unsigned char *)(KEY), KEY_LENGTH);
 	log_energest_statistics("Key generated");
 
 	// wait for connection

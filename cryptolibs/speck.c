@@ -1,7 +1,3 @@
-#define SPECK_BLOCK_LENGTH 128
-#define SPECK_KEY_LENGTH 128
-#define SPECK_ROUNDS 32
-
 #include "crypto.h"
 #include "string.h"
 #include "speck/speck.c"

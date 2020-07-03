@@ -41,8 +41,8 @@ static PT_THREAD(handle_connection(struct psock *p)) {
 		// generate and encrypt packet
 		unsigned char packet_plain[PACKET_SIZE], packet_encrypted[PACKET_SIZE];
 		int i;
-		for (i = 0; i < PACKET_SIZE; i += BLOCK_LENGTH) {
-			generate_random_data(packet_plain + i, BLOCK_LENGTH);
+		for (i = 0; i < PACKET_SIZE; i += BLOCK_LENGTH/8) {
+			generate_random_data(packet_plain + i, BLOCK_LENGTH/8);
 			encrypt(packet_plain + i, packet_encrypted + i);
 		}
 
@@ -79,7 +79,7 @@ PROCESS_THREAD(sender_process, ev, data) {
 
 	// prepare the key
 	log_energest_statistics("Key generation started");
-	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
+	setKey((unsigned char *)(KEY), KEY_LENGTH);
 	log_energest_statistics("Key generated");
 
 	// get ip address of the reciever
