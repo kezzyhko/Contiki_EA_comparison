@@ -1,11 +1,5 @@
-#define CONF_PRESENT (1u) // Do not change this line
-#define PRESENT_ROUND_COUNT (31u) // Do not change this line
-#define PRESENT_USE_KEY80  (1u) // Disable it if you want to use 128 key length
-#define PRESENT_USE_KEY128 (0u) // Enable it if you want to use 128 key length
-
 #include "crypto.h"
 #include "present/present.h"
-#include "present/PRESENT.c"
 #include "utils.h"
 #include "string.h"
 

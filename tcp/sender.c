@@ -37,20 +37,13 @@ void generate_random_data(unsigned char* result, int size) {
 static PT_THREAD(handle_connection(struct psock *p)) {
 	PSOCK_BEGIN(p);
 
-	// TODO: add encryption
-	setKey((unsigned char *)(KEY), (sizeof KEY - 1) * 8);
 	for (k = 0; k < MESSAGE_SIZE; k += PACKET_SIZE) {
-		// generate packet
+		// generate and encrypt packet
 		unsigned char packet_plain[PACKET_SIZE], packet_encrypted[PACKET_SIZE];
-		generate_random_data(packet_plain, PACKET_SIZE);
-
-		// encrypt packet
 		int i;
-		for (i = 0; i < PACKET_SIZE; i += BLOCK_LENGTH) {
-			unsigned char block_plain[BLOCK_LENGTH], block_encrypted[BLOCK_LENGTH];
-			memcpy(block_plain, packet_plain + i, BLOCK_LENGTH);
-			encrypt(block_plain, block_encrypted);
-			memcpy(packet_encrypted + i, block_encrypted, BLOCK_LENGTH);
+		for (i = 0; i < PACKET_SIZE; i += BLOCK_LENGTH/8) {
+			generate_random_data(packet_plain + i, BLOCK_LENGTH/8);
+			encrypt(packet_plain + i, packet_encrypted + i);
 		}
 
 		// log
@@ -84,6 +77,11 @@ PROCESS_THREAD(sender_process, ev, data) {
 	PROCESS_BEGIN();
 	static struct etimer periodic_timer;
 
+	// prepare the key
+	log_energest_statistics("Key generation started");
+	setKey((unsigned char *)(KEY), KEY_LENGTH);
+	log_energest_statistics("Key generated");
+
 	// get ip address of the reciever
 	while (!NETSTACK_ROUTING.node_is_reachable() || !NETSTACK_ROUTING.get_root_ipaddr(&reciever_ip)) {
 		LOG_INFO("Unable to find reciever, retry in %d seconds\n", SEND_INTERVAL);
@@ -106,8 +104,7 @@ PROCESS_THREAD(sender_process, ev, data) {
 			PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 		}
 	} while (!uip_connected());
-	LOG_INFO("Connected\n");
-	log_energest_statistics();
+	log_energest_statistics("Connected");
 
 	// protothread for sending data
 	static struct psock ps;
@@ -117,7 +114,6 @@ PROCESS_THREAD(sender_process, ev, data) {
 		PROCESS_WAIT_EVENT_UNTIL(ev == tcpip_event);
 	} while (!uip_closed() && !uip_aborted() && !uip_timedout());
 
-	LOG_INFO("Connection closed\n");
-	log_energest_statistics();
+	log_energest_statistics("Connection closed");
 	PROCESS_END();
 }

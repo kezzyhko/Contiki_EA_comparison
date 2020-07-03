@@ -36,7 +36,6 @@
  #include "cpu_endian.h"
 
  #define ROL32(a, n) (((a) << (n)) | ((a) >> (32 - (n))))
- #define NULL 0
   
  /**
   * @brief Modular multiplication
