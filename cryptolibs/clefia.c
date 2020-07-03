@@ -1,7 +1,7 @@
 #include "crypto.h"
 #include "string.h"
 #include "clefia/clefia_ref.h"
-#include "stdint.h"
+#include "utils.h"
 
 unsigned char _rk[CLEFIA_RK_MAX];
 int _nrounds;
@@ -14,18 +14,9 @@ void setKey(unsigned char* key, int keybits)
 	_nrounds = ClefiaKeySet(_rk, key, keybits);
 }
 
-void xor(uint32_t* a, const uint32_t* b) {
-	int i = 5;
-	while (--i > 0) {
-		*a ^= *b;
-		++a;
-		++b;
-	}
-}
-
 void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16])
 {
-	xor( (uint32_t*) _ive, (uint32_t*) plaintext);
+	xor( (uint16_t*) _ive, (uint16_t*) plaintext, 8);
 	ClefiaEncrypt(ciphertext, _ive, _rk, _nrounds);
 	memcpy(_ive, ciphertext, 16);
 }
@@ -33,6 +24,6 @@ void encrypt(const unsigned char plaintext[16], unsigned char ciphertext[16])
 void decrypt(const unsigned char ciphertext[16], unsigned char plaintext[16])
 {
 	ClefiaDecrypt(plaintext, ciphertext, _rk, _nrounds);
-	xor( (uint32_t*) plaintext, (uint32_t*) _ivd);
+	xor( (uint16_t*) plaintext, (uint16_t*) _ivd, 8);
 	memcpy(_ivd, ciphertext, 16);
 }

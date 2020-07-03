@@ -25,7 +25,6 @@ INT _ivd[2] = {0, 0};
 void setKey(unsigned char* key, int keybits)
 {
 	speck_keyschedule((INT*)key, _rk);
-	//keybits sorre
 }
 
 void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
@@ -35,5 +34,5 @@ void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
 
 void decrypt(const unsigned char* ciphertext, unsigned char* plaintext)
 {
-	speck_decryption((INT*)plaintext, (INT*)ciphertext, _rk, _ive);
+	speck_decryption((INT*)plaintext, (INT*)ciphertext, _rk, _ivd);
 }
