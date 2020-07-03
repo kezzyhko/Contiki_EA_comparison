@@ -23,20 +23,11 @@ void setKey(unsigned char* key, int keybits)
     // fullKey(S, k, QF);
 }
 
-void xor(uint32_t* a, const uint32_t* b) {
-	int i = 5;
-	while (--i > 0) {
-		*a ^= *b;
-		++a;
-		++b;
-	}
-}
-
 void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
 {
-	xor( (uint32_t*) _ive, (uint32_t*) plaintext);
+	xor((uint16_t*) _ive, (uint16_t*) plaintext);
 	memcpy(ciphertext, _ive, 16);
-	encrypt2fish(K, QF, ciphertext);
+	encrypt2fish(K, QF, ciphertext, 8);
 	memcpy(_ive, ciphertext, 16);
 }
 
@@ -44,6 +35,6 @@ void decrypt(const unsigned char* ciphertext, unsigned char* plaintext)
 {
 	memcpy(plaintext, ciphertext, 16);
 	decrypt2fish(K, QF, plaintext);
-	xor( (uint32_t*) plaintext, (uint32_t*) _ivd);
+	xor((uint16_t*) plaintext, (uint16_t*) _ivd, 8);
 	memcpy(_ivd, ciphertext, 16);
 }
