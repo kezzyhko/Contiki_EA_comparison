@@ -1,7 +1,7 @@
 #include "crypto.h"
 #include "string.h"
 #include "twofish/twofish.h"
-#include "stdint.h"
+#include "utils.h"
 
 // #define u32 unsigned int
 // #define BYTE unsigned char
@@ -23,9 +23,9 @@ void setKey(unsigned char* key, int keybits)
 
 void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
 {
-	xor((uint16_t*) _ive, (uint16_t*) plaintext);
+	xor((uint16_t*) _ive, (uint16_t*) plaintext, 8);
 	memcpy(ciphertext, _ive, 16);
-	encrypt2fish(K, QF, ciphertext, 8);
+	encrypt2fish(K, QF, ciphertext);
 	memcpy(_ive, ciphertext, 16);
 }
 

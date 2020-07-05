@@ -73,6 +73,7 @@
 
 	#include "../cryptolibs/speck.c"
 #elif ALGORITHM == TWOFISH
+	#include "stdint.h"
 	#define u32 uint32_t
 	#define BYTE unsigned char
 
@@ -81,7 +82,7 @@
 	#elif KEY_LENGTH == 192
 		#include "../cryptolibs/twofish/key192.h"
 	#elif KEY_LENGTH == 256
-		#include "../cryptolib/stwofish/key256.h"
+		#include "../cryptolibs/twofish/key256.h"
 	#endif
 
 	#include "../cryptolibs/twofish.c"
