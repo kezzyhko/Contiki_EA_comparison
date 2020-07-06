@@ -9,8 +9,8 @@
 #define MESSAGE_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define MESSAGE_SIZE (10 * 1024)
 
-#define ALGORITHM AES
-#define BLOCK_LENGTH 128
+#define ALGORITHM XTEA
+#define BLOCK_LENGTH 64
 #define KEY_LENGTH 128
 
 #define KEY "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"

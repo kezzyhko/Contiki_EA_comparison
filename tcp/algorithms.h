@@ -3,7 +3,8 @@
 #define PRESENT_MEMORY 3
 #define PRESENT_SPEED 4
 #define TEA 5
-#define SPECK 6
-#define TWOFISH 7
-#define DES 8
-#define IDEA 9
+#define XTEA 6
+#define SPECK 7
+#define TWOFISH 8
+#define DES 9
+#define IDEA 10

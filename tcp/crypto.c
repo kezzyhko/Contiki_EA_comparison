@@ -12,13 +12,13 @@
 	#endif
 #endif
 
-#if ALGORITHM == PRESENT_MEMORY || ALGORITHM == PRESENT_SPEED || ALGORITHM == TEA || ALGORITHM == DES || ALGORITHM == IDEA
+#if ALGORITHM == PRESENT_MEMORY || ALGORITHM == PRESENT_SPEED || ALGORITHM == TEA || ALGORITHM == XTEA || ALGORITHM == DES || ALGORITHM == IDEA
 	#if BLOCK_LENGTH != 64
 		#error Chosen algorithm supports only the following BLOCK_LENGTHs: 64
 	#endif
 #endif
 
-#if ALGORITHM == TEA || ALGORITHM == IDEA
+#if ALGORITHM == TEA || ALGORITHM == XTEA || ALGORITHM == IDEA
 	#if KEY_LENGTH != 128
 		#error Chosen algorithm supports only the following KEY_LENGTHs: 128
 	#endif
@@ -66,6 +66,8 @@
 	#include "../cryptolibs/present_speed/PRESENT.c"
 #elif ALGORITHM == TEA
 	#include "../cryptolibs/tea.c"
+#elif ALGORITHM == XTEA
+	#include "../cryptolibs/xtea.c"
 #elif ALGORITHM == SPECK
 	#define SPECK_BLOCK_LENGTH BLOCK_LENGTH
 	#define SPECK_KEY_LENGTH KEY_LENGTH
