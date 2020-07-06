@@ -1,8 +1,10 @@
 #define AES 1
 #define CLEFIA 2
-#define PRESENT 3
-#define TEA 4
-#define SPECK 5
-#define TWOFISH 6
-#define DES 7
-#define IDEA 8
+#define PRESENT_MEMORY 3
+#define PRESENT_SPEED 4
+#define TEA 5
+#define XTEA 6
+#define SPECK 7
+#define TWOFISH 8
+#define DES 9
+#define IDEA 10
