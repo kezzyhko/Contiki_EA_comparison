@@ -8,3 +8,4 @@
 #define TWOFISH 8
 #define DES 9
 #define IDEA 10
+#define SEA 11
