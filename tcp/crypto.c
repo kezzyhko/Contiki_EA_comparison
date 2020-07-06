@@ -12,7 +12,7 @@
 	#endif
 #endif
 
-#if ALGORITHM == PRESENT || ALGORITHM == TEA || ALGORITHM == DES || ALGORITHM == IDEA
+#if ALGORITHM == PRESENT_MEMORY || ALGORITHM == PRESENT_SPEED || ALGORITHM == TEA || ALGORITHM == DES || ALGORITHM == IDEA
 	#if BLOCK_LENGTH != 64
 		#error Chosen algorithm supports only the following BLOCK_LENGTHs: 64
 	#endif
@@ -34,7 +34,7 @@
 #elif ALGORITHM == CLEFIA
 	#include "../cryptolibs/clefia.c"
 	#include "../cryptolibs/clefia/clefia_ref.c"
-#elif ALGORITHM == PRESENT
+#elif ALGORITHM == PRESENT_MEMORY
 	#define CONF_PRESENT (1u)
 	#define PRESENT_ROUND_COUNT (31u)
 	#if KEY_LENGTH == 80
@@ -47,8 +47,23 @@
 		#error Chosen algorithm supports only the following KEY_LENGTHs: 80, 128
 	#endif
 
-	#include "../cryptolibs/present.c"
-	#include "../cryptolibs/present/PRESENT.c"
+	#include "../cryptolibs/present_memory.c"
+	#include "../cryptolibs/present_memory/PRESENT.c"
+#elif ALGORITHM == PRESENT_SPEED
+	#define CONF_PRESENT (1u)
+	#define PRESENT_ROUND_COUNT (31u)
+	#if KEY_LENGTH == 80
+		#define PRESENT_USE_KEY80  (1u)
+		#define PRESENT_USE_KEY128 (0u)
+	#elif KEY_LENGTH == 128
+		#define PRESENT_USE_KEY80  (0u)
+		#define PRESENT_USE_KEY128 (1u)
+	#else
+		#error Chosen algorithm supports only the following KEY_LENGTHs: 80, 128
+	#endif
+
+	#include "../cryptolibs/present_speed.c"
+	#include "../cryptolibs/present_speed/PRESENT.c"
 #elif ALGORITHM == TEA
 	#include "../cryptolibs/tea.c"
 #elif ALGORITHM == SPECK
