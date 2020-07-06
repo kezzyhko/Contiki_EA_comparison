@@ -9,9 +9,9 @@
 #define MESSAGE_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define MESSAGE_SIZE (10 * 1024)
 
-#define ALGORITHM XTEA
-#define BLOCK_LENGTH 64
-#define KEY_LENGTH 128
+#define ALGORITHM SEA
+#define BLOCK_LENGTH 96
+#define KEY_LENGTH 96
 
 #define KEY "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
 // it's 256bit, but only first KEY_LENGTH bits will be used

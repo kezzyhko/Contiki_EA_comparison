@@ -116,6 +116,14 @@
 #elif ALGORITHM == IDEA
 	#include "../cryptolibs/idea.c"
 	#include "../cryptolibs/idea/idea.c"
+#elif ALGORITHM == SEA
+	#if BLOCK_LENGTH != 96
+		#error Chosen algorithm supports only the following BLOCK_LENGTHs: 96
+	#endif
+	#if KEY_LENGTH != 96
+		#error Chosen algorithm supports only the following KEY_LENGTHs: 96
+	#endif
+	#include "../cryptolibs/sea.c"
 #else
 	#error Please, set ALGORITHM macro to one of the macros defined in algorithms.h
 #endif
