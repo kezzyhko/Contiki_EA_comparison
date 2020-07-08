@@ -4,7 +4,7 @@ typedef uint16_t u16;
 #define SIZE 96//n : plaintext size, key size. k*6B
 #define B 16 //processor (or word) size.
 #define NB (SIZE/(2*B)) //nb = n/2b : number of words per Feistel branch.
-#define NBROUND 91 // odd number
+#define NBROUND 95 // odd number
 
 #define MASK 0xFFFF
 
