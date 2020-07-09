@@ -15,6 +15,6 @@
 
 #define KEY "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
 // it's 256bit, but only first KEY_LENGTH bits will be used
-// TWOFISH algorithm uses precalculated keys located in "../cryptolibs/twofish"
+// TWOFISH and PRESENT_SPEED algorithms use precalculated keys located in "../cryptolibs/twofish" and "../cryptolibs/present_speed"
 
 #endif /* CONSTANTS_H_ */
