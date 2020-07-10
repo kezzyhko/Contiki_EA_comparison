@@ -24,6 +24,20 @@
 	#endif
 #endif
 
+#if ALGORITHM == PRESENT_MEMORY || ALGORITHM == PRESENT_SPEED
+	#define CONF_PRESENT (1u)
+	#define PRESENT_ROUND_COUNT (31u)
+	#if KEY_LENGTH == 80
+		#define PRESENT_USE_KEY80  (1u)
+		#define PRESENT_USE_KEY128 (0u)
+	#elif KEY_LENGTH == 128
+		#define PRESENT_USE_KEY80  (0u)
+		#define PRESENT_USE_KEY128 (1u)
+	#else
+		#error Chosen algorithm supports only the following KEY_LENGTHs: 80, 128
+	#endif
+#endif
+
 // there are more algorithm-specific checks below
 
 
@@ -35,33 +49,9 @@
 	#include "../cryptolibs/clefia.c"
 	#include "../cryptolibs/clefia/clefia_ref.c"
 #elif ALGORITHM == PRESENT_MEMORY
-	#define CONF_PRESENT (1u)
-	#define PRESENT_ROUND_COUNT (31u)
-	#if KEY_LENGTH == 80
-		#define PRESENT_USE_KEY80  (1u)
-		#define PRESENT_USE_KEY128 (0u)
-	#elif KEY_LENGTH == 128
-		#define PRESENT_USE_KEY80  (0u)
-		#define PRESENT_USE_KEY128 (1u)
-	#else
-		#error Chosen algorithm supports only the following KEY_LENGTHs: 80, 128
-	#endif
-
 	#include "../cryptolibs/present_memory.c"
 	#include "../cryptolibs/present_memory/PRESENT.c"
 #elif ALGORITHM == PRESENT_SPEED
-	#define CONF_PRESENT (1u)
-	#define PRESENT_ROUND_COUNT (31u)
-	#if KEY_LENGTH == 80
-		#define PRESENT_USE_KEY80  (1u)
-		#define PRESENT_USE_KEY128 (0u)
-	#elif KEY_LENGTH == 128
-		#define PRESENT_USE_KEY80  (0u)
-		#define PRESENT_USE_KEY128 (1u)
-	#else
-		#error Chosen algorithm supports only the following KEY_LENGTHs: 80, 128
-	#endif
-
 	#include "../cryptolibs/present_speed.c"
 	#include "../cryptolibs/present_speed/PRESENT.c"
 #elif ALGORITHM == TEA
@@ -85,7 +75,7 @@
 	#elif BLOCK_LENGTH == 128 && KEY_LENGTH == 256
 		#define SPECK_ROUNDS 34
 	#else
-		#error Chosen algorithm supports only the following combination of BLOCK_LENGHTs and KEY_LENGTHs: 32 and 64, 64 and 96, 64 and 128, 128 and 128, 128 and 192, 128 and 256
+		#error Chosen algorithm supports only the following combinations of BLOCK_LENGHT and KEY_LENGTH: 32 and 64, 64 and 96, 64 and 128, 128 and 128, 128 and 192, 128 and 256
 	#endif
 
 	#include "../cryptolibs/speck.c"

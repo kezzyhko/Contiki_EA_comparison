@@ -4,7 +4,7 @@ typedef uint16_t u16;
 #define SIZE 96//n : plaintext size, key size. k*6B
 #define B 16 //processor (or word) size.
 #define NB (SIZE/(2*B)) //nb = n/2b : number of words per Feistel branch.
-#define NBROUND 51 // odd number
+#define NBROUND 95 // odd number
 
 #define MASK 0xFFFF
 
@@ -76,7 +76,7 @@ typedef uint16_t u16;
 	return;
 }
 
- void Add(u16 x[NB],u16 y[NB])
+ void Add(u16 x[NB],const u16 y[NB])
 {
 	u16 i;
 	for(i=0;i<NB;i++)
@@ -101,7 +101,7 @@ typedef uint16_t u16;
 	return;
 }
 
- void fe(u16 r[NB],u16 l[NB],u16 k[NB])
+ void fe(u16 r[NB],u16 l[NB],const u16 k[NB])
 {
 	u16 temp[NB],i;
 	for(i=0;i<NB;i++) temp[i]=r[i];
@@ -117,7 +117,7 @@ typedef uint16_t u16;
 	return;
 }
 
- void fd(u16 r[NB],u16 l[NB],u16 k[NB])
+ void fd(u16 r[NB],u16 l[NB],const u16 k[NB])
 {
 	u16 temp[NB],i;
 	for(i=0;i<NB;i++) temp[i]=r[i];
@@ -160,7 +160,7 @@ typedef uint16_t u16;
 	return;
 }
 
- void Decrypt(u16 state[2*NB],u16 rkey[NBROUND][2*NB])
+ void Decrypt(u16 state[2*NB],const u16 rkey[NBROUND][2*NB])
 {
 	u16 i,temp;
 	
@@ -182,7 +182,7 @@ typedef uint16_t u16;
 	return;
 }
 
- void Encrypt(u16 state[2*NB],u16 rkey[NBROUND][2*NB])
+ void Encrypt(u16 state[2*NB],const u16 rkey[NBROUND][2*NB])
 {
 	u16 i,temp;
 	for(i=1;i<=((NBROUND+1)>>2);i++)

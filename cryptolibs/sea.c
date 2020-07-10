@@ -3,14 +3,14 @@
 #include "sea/sea.c"
 #include "utils.h"
 
-uint16_t _rk[NBROUND][2*NB];
+#include "sea/key.h"
 
 uint16_t _ive[NB * 2];
 uint16_t _ivd[NB * 2];
 
 void setKey(unsigned char* key, int keybits)
 {
-	KeySchedul((uint16_t *) key, _rk);
+	// KeySchedul((uint16_t *) key, _rk);
 }
 
 void encrypt(const unsigned char* plaintext, unsigned char* ciphertext)
