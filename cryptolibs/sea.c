@@ -3,7 +3,7 @@
 #include "sea/sea.c"
 #include "utils.h"
 
-uint16_t _rk[NBROUND][2*NB];
+#include "sea/key.h"
 
 uint16_t _ive[NB * 2];
 uint16_t _ivd[NB * 2];
