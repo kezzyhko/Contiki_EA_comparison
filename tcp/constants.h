@@ -4,7 +4,8 @@
 
 #define PORT 1357
 #define SEND_INTERVAL 10 //seconds
-#define PACKET_SIZE 64 //bytes
+#define PACKET_SIZE 48 //bytes
+//PACKET_SIZE*8 should be divisible by KEY_LENGTH
 
 #define MESSAGE_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define MESSAGE_SIZE (10 * 1024)
